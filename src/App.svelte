@@ -58,6 +58,25 @@
   const combo = $derived(comboStatus(date));
   const streakInfo = $derived(comboStreak(date, today));
   const streak = $derived(streakInfo.count);
+
+  // Badge colour follows the usual RPG item rarity ladder as the streak grows: grey, green, blue, purple, orange. A solid red outline warns that the streak
+  // ends today unless the combo is completed; a dashed outline means today would use up a grace day.
+  const tiers = [
+    [30, 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300'],
+    [14, 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300'],
+    [7, 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'],
+    [3, 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300'],
+    [1, 'bg-stone-200 text-stone-700 dark:bg-stone-700 dark:text-stone-200'],
+    [0, 'bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400'],
+  ];
+  const badgeColour = $derived(tiers.find(([min]) => streak >= min)[1]);
+  const badgeRing = $derived(
+    streakInfo.risk === 'lost'
+      ? 'border-red-500 text-red-700! dark:text-red-300!'
+      : streakInfo.risk === 'grace'
+        ? 'border-dashed border-current'
+        : 'border-transparent',
+  );
   const r0 = (n) => Math.round(n);
   const comboRows = $derived([
     {
@@ -162,8 +181,8 @@
     <div class="flex items-center justify-between gap-2">
       <h2 class="font-semibold">Daily combo</h2>
       <span
-        class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-medium
-          {streak > 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400'}"
+        class="inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-0.5 text-sm font-medium {badgeColour} {badgeRing}"
+        aria-label="Combo streak: {streak} {streak === 1 ? 'day' : 'days'}{streakInfo.risk === 'lost' ? ', ends today unless completed' : ''}"
       >
         <Icon name="flame" />{streak} {streak === 1 ? 'day' : 'days'}
       </span>
@@ -184,7 +203,18 @@
         </li>
       {/each}
     </ul>
-    {#if streakInfo.graceUsed > 0 && !combo.all}
+    {#if streakInfo.risk === 'lost' && !combo.all}
+      <p class="text-sm font-medium text-red-700 dark:text-red-400" role="status">
+        The streak ends tonight unless you complete today's combo.
+        {#if db.goals.comboGraceDays > 0 && streakInfo.graceUsed === 0}
+          A grace day isn't available: one was used in the last {db.goals.comboGraceCooldown} days.
+        {/if}
+      </p>
+    {:else if streakInfo.risk === 'grace' && !combo.all}
+      <p class="muted">
+        If today stays incomplete, a grace day is used and the streak survives.
+      </p>
+    {:else if streakInfo.graceUsed > 0 && !combo.all}
       <p class="muted">
         {streakInfo.graceUsed === 1 ? 'A missed day is being forgiven' : `${streakInfo.graceUsed} missed days are being forgiven`}.
         Complete the combo to keep the streak going.

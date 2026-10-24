@@ -43,7 +43,7 @@ const defaultSupplements = () => [
 
 const defaults = () => ({
   version: 2,
-  goals: { kcal: 2100, kcalTolerance: 100, protein: 120, fiber: 40, comboActivities: true, comboGraceDays: 1 },
+  goals: { kcal: 2100, kcalTolerance: 100, protein: 120, fiber: 40, comboActivities: true, comboGraceDays: 1, comboGraceCooldown: 7 },
   supplements: defaultSupplements(),
   supplementLog: {}, // { 'YYYY-MM-DD': [supplementId, ...] }
   products: [], // saved/custom products and recipes, nutrition per 100 g
@@ -144,6 +144,7 @@ function sanitize(d) {
           fiber: nonNeg(g.fiber),
           comboActivities: g.comboActivities !== false,
           comboGraceDays: 'comboGraceDays' in g ? Math.floor(nonNeg(g.comboGraceDays)) : base.goals.comboGraceDays,
+          comboGraceCooldown: 'comboGraceCooldown' in g ? Math.floor(nonNeg(g.comboGraceCooldown)) : base.goals.comboGraceCooldown,
         }
       : base.goals,
     supplements: Array.isArray(d?.supplements) ? withDefaultActivities(d, clean(d.supplements, cleanSupplement)) : base.supplements,
@@ -386,28 +387,76 @@ export function comboStatus(date) {
   return dayStatus(date, totals(db.entries.filter((e) => e.date === date)));
 }
 
-// Streak of combo days ending at `date`. Missing up to `comboGraceDays` days in a row doesn't break it: those days just
-// don't count. A day that isn't finished yet (today) is never treated as a miss.
-// Returns { count, graceUsed }; graceUsed is how many days since the last combo day are being forgiven right now.
-export function comboStreak(date, today = todayStr()) {
+const EMPTY_TOTALS = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, salt: 0 };
+
+function groupByDate() {
   const byDate = new Map();
   for (const e of db.entries) {
     if (!byDate.has(e.date)) byDate.set(e.date, []);
     byDate.get(e.date).push(e);
   }
-  const empty = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, salt: 0 };
-  const grace = db.goals.comboGraceDays ?? 0;
+  return byDate;
+}
+
+const isComboDay = (d, byDate) => dayStatus(d, byDate.has(d) ? totals(byDate.get(d)) : EMPTY_TOTALS).all;
+
+// Replays the days up to `upTo` in order to work out the streak.
+//  - A combo day extends it.
+//  - A missed day is forgiven (the streak survives, the day just doesn't count) when a grace day is available:
+//    at most `comboGraceDays` missed days in a row, and a new forgiven stretch only starts if no day was forgiven in the
+//    previous `comboGraceCooldown` days. Otherwise the streak is over.
+//  - Today, while unfinished, is neither a combo day nor a miss.
+// Returns the streak, the forgiven stretch it currently ends in, per-day marks for the calendar and what would happen if
+// today ended incomplete.
+function simulate(upTo, today) {
+  const { comboGraceDays: grace = 0, comboGraceCooldown: cooldown = 0 } = db.goals;
+  const byDate = groupByDate();
+  const first = db.entries.reduce((min, e) => (e.date < min ? e.date : min), upTo);
+  const start = first > addDays(upTo, -400) ? first : addDays(upTo, -400);
+  const marks = new Map();
   let count = 0;
-  let misses = 0;
-  let graceUsed = 0;
-  for (let d = date, i = 0; i < 400; d = addDays(d, -1), i++) {
-    if (dayStatus(d, byDate.has(d) ? totals(byDate.get(d)) : empty).all) {
-      if (count === 0) graceUsed = misses;
+  let run = []; // forgiven days at the end of the streak so far
+  let lastForgiven = null;
+  let pending = false;
+
+  const mayStartGrace = (d) => grace >= 1 && (cooldown === 0 || lastForgiven === null || dayNumber(d) - dayNumber(lastForgiven) > cooldown);
+
+  for (let d = start; d <= upTo && d <= today; d = addDays(d, 1)) {
+    if (isComboDay(d, byDate)) {
+      marks.set(d, 'combo');
       count++;
-      misses = 0;
-    } else if (!(d === date && d === today)) {
-      if (++misses > grace) break;
+      run = [];
+    } else if (d === today) {
+      pending = d === upTo;
+    } else if (count > 0) {
+      if (run.length ? run.length < grace : mayStartGrace(d)) {
+        run.push(d);
+        lastForgiven = d;
+        marks.set(d, 'forgiven');
+      } else {
+        // out of grace: the streak ends, and the days forgiven on the way were forgiven for nothing
+        for (const x of run) marks.delete(x);
+        count = 0;
+        run = [];
+        lastForgiven = null;
+      }
     }
   }
-  return { count, graceUsed };
+  const risk = count > 0 && pending ? ((run.length ? run.length < grace : mayStartGrace(upTo)) ? 'grace' : 'lost') : null;
+  return { count, graceUsed: run.length, risk, marks };
+}
+
+// Streak of combo days ending at `date`: { count, graceUsed, risk }.
+// risk is only set while today is unfinished: 'lost' if ending the day incomplete ends the streak, 'grace' if it would
+// use a grace day instead.
+export function comboStreak(date, today = todayStr()) {
+  const { count, graceUsed, risk } = simulate(date, today);
+  return { count, graceUsed, risk };
+}
+
+// Marks days from..to for the calendar: 'combo' (all goals met) or 'forgiven' (a missed day the grace rules covered).
+// Everything else is left out of the map.
+export function comboDays(from, to, today = todayStr()) {
+  const { marks } = simulate(to, today);
+  return new Map([...marks].filter(([d]) => d >= from && d <= to));
 }

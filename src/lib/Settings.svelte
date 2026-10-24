@@ -112,6 +112,7 @@
       <h4 class="mt-1 text-sm font-semibold">Daily combo</h4>
       <div class="grid grid-cols-2 gap-2">
         <label class="label">Forgiven missed days<input class="field" type="number" min="0" step="1" inputmode="numeric" value={db.goals.comboGraceDays} onchange={(e) => setGoal('comboGraceDays', e)} /></label>
+        <label class="label">Grace cooldown (days)<input class="field" type="number" min="0" step="1" inputmode="numeric" value={db.goals.comboGraceCooldown} onchange={(e) => setGoal('comboGraceCooldown', e)} /></label>
       </div>
       <label class="flex items-start gap-2">
         <input class="mt-0.5 size-5 shrink-0 accent-emerald-600" type="checkbox" bind:checked={db.goals.comboActivities} />

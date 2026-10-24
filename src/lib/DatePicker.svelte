@@ -1,5 +1,5 @@
 <script>
-  import { db } from './store.svelte.js';
+  import { db, comboDays } from './store.svelte.js';
   import Modal from './Modal.svelte';
   import Icon from './Icon.svelte';
 
@@ -16,6 +16,8 @@
   const lead = $derived((new Date(year, month, 1).getDay() + 6) % 7);
   const days = $derived(Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, i) => `${year}-${pad(month + 1)}-${pad(i + 1)}`));
   const logged = $derived(new Set(db.entries.map((e) => e.date)));
+  // 'combo' = all daily goals met, 'forgiven' = missed day covered by the grace period
+  const marks = $derived(comboDays(days[0], days[days.length - 1], today));
 
   function step(n) {
     const d = new Date(year, month + n, 1);
@@ -36,18 +38,33 @@
     {#each { length: lead }}<span></span>{/each}
     {#each days as d}
       <button
-        class="relative aspect-square rounded-lg text-base tabular-nums transition-colors
+        class="flex aspect-square flex-col items-center justify-center rounded-lg text-base tabular-nums transition-colors
           {d === date ? 'bg-emerald-600 font-semibold text-white' : 'hover:bg-stone-100 dark:hover:bg-stone-800'}
           {d === today && d !== date ? 'ring-2 ring-emerald-600 ring-inset' : ''}"
         onclick={() => onpick(d)}
-        aria-label={d}
+        aria-label="{d}{marks.get(d) === 'combo' ? ', combo day' : marks.get(d) === 'forgiven' ? ', forgiven day' : ''}"
         aria-current={d === date ? 'date' : undefined}
       >
-        {+d.slice(8)}
-        {#if logged.has(d)}<span class="absolute bottom-1 left-1/2 size-1 -translate-x-1/2 rounded-full {d === date ? 'bg-white' : 'bg-emerald-500'}"></span>{/if}
+        <span class="leading-none">{+d.slice(8)}</span>
+        <!-- fixed-height row so every date sits at the same height whether or not it has a marker -->
+        <span class="mt-0.5 flex h-3 items-center justify-center">
+          {#if marks.get(d) === 'combo'}
+            <Icon name="flame" class="size-3 {d === date ? 'text-white' : 'text-orange-500'}" />
+          {:else if marks.get(d) === 'forgiven'}
+            <Icon name="snowflake" class="size-3 {d === date ? 'text-white' : 'text-sky-500'}" />
+          {:else if logged.has(d)}
+            <span class="size-1 rounded-full {d === date ? 'bg-white' : 'bg-stone-400'}"></span>
+          {/if}
+        </span>
       </button>
     {/each}
   </div>
+
+  <p class="muted flex flex-wrap items-center gap-x-4 gap-y-1">
+    <span class="inline-flex items-center gap-1"><Icon name="flame" class="text-orange-500" /> combo day</span>
+    <span class="inline-flex items-center gap-1"><Icon name="snowflake" class="text-sky-500" /> forgiven day</span>
+    <span class="inline-flex items-center gap-1"><span class="size-1.5 rounded-full bg-stone-400"></span> food logged</span>
+  </p>
 
   <div class="grid grid-cols-2 gap-2">
     <button class="btn" onclick={onclose}>Cancel</button>

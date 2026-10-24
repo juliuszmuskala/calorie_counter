@@ -1,7 +1,7 @@
 <script>
   // Thin wrapper over Lucide so the rest of the app refers to icons by a short name, sized in em to follow the text.
   import {
-    Apple, Carrot, Check, Flame, ChefHat, ChevronLeft, ChevronRight, Cherry, Coffee, Cookie, Drumstick, Droplet, Egg, Fish, Leaf, Milk, Nut,
+    Apple, Carrot, Check, Flame, Snowflake, ChefHat, ChevronLeft, ChevronRight, Cherry, Coffee, Cookie, Drumstick, Droplet, Egg, Fish, Leaf, Milk, Nut,
     Pencil, Settings, Trash2, Utensils, Wheat, X,
   } from '@lucide/svelte';
 
@@ -11,6 +11,7 @@
     x: X,
     check: Check,
     flame: Flame,
+    snowflake: Snowflake,
     'chevron-left': ChevronLeft,
     'chevron-right': ChevronRight,
     trash: Trash2,
