@@ -2,7 +2,9 @@ import { foodIcon } from './foodIcon.js';
 
 const KEY = 'calorie-counter:v1';
 export const MEALS = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
+// Indexed like Date.getDay() (0 = Sunday); WEEK_ORDER is the order shown to the user, Monday first.
 export const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+export const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 // ---- dates (always local calendar days, as 'YYYY-MM-DD')
 
@@ -352,7 +354,7 @@ export function removeSupplement(id) {
 
 export function describeSchedule(r) {
   if (r.type === 'weekday') return `every ${WEEKDAYS[r.day]}`;
-  if (r.type === 'weekdays') return r.days.map((d) => WEEKDAYS[d].slice(0, 3)).join(', ');
+  if (r.type === 'weekdays') return WEEK_ORDER.filter((d) => r.days.includes(d)).map((d) => WEEKDAYS[d].slice(0, 3)).join(', ');
   if (r.type === 'interval') return r.every === 2 ? 'every second day' : `every ${r.every} days`;
   return 'daily';
 }

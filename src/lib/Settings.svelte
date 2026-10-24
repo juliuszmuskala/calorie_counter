@@ -1,7 +1,7 @@
 <script>
   import Icon from './Icon.svelte';
   import {
-    db, exportJson, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS,
+    db, exportJson, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS, WEEK_ORDER,
   } from './store.svelte.js';
   import Modal from './Modal.svelte';
   import RecipeBuilder from './RecipeBuilder.svelte';
@@ -157,12 +157,12 @@
         </div>
         {#if item.type === 'weekdays'}
           <div class="grid grid-cols-7 gap-1" role="group" aria-label="Weekdays">
-            {#each WEEKDAYS as d, i}
+            {#each WEEK_ORDER as i}
               <button
                 type="button"
                 class="btn min-h-9 px-0 py-1 text-sm {item.days.includes(i) ? 'btn-primary' : ''}"
                 aria-pressed={item.days.includes(i)}
-                onclick={() => toggleDay(i)}>{d.slice(0, 3)}</button
+                onclick={() => toggleDay(i)}>{WEEKDAYS[i].slice(0, 3)}</button
               >
             {/each}
           </div>
