@@ -152,7 +152,7 @@
       <ul class="divided">
         {#each mealEntries(m) as e (e.id)}
           <li class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-            <button class="-mx-2 flex min-w-0 flex-1 basis-44 items-center gap-3 rounded-lg px-2 py-1 text-left hover:bg-stone-100 dark:hover:bg-stone-800" onclick={() => (viewing = e.id)} aria-label="Nutrition details for {e.name}">
+            <button class="-mx-2 flex min-w-0 flex-1 basis-32 items-center gap-3 rounded-lg px-2 py-1 text-left hover:bg-stone-100 dark:hover:bg-stone-800" onclick={() => (viewing = e.id)} aria-label="Nutrition details for {e.name}">
               <ProductIcon item={e} />
               <span class="min-w-0">
                 <span class="line-clamp-2 break-words">{e.name}</span>
@@ -161,7 +161,7 @@
             </button>
             <span class="ml-auto flex shrink-0 items-center gap-1">
               <input
-                class="field w-20 px-2 py-1"
+                class="field w-[4.25rem] px-2 py-1"
                 type="number"
                 min="0"
                 step="any"
@@ -171,8 +171,8 @@
                 aria-label="Grams of {e.name}"
               />
               <span class="muted">g</span>
-              <span class="min-w-20 text-right text-sm font-medium whitespace-nowrap tabular-nums">{Math.round(scale(e, 'kcal'))} kcal</span>
-              <button class="btn-icon" aria-label="Remove {e.name}" onclick={() => removeEntry(e.id)}><Icon name="x" /></button>
+              <span class="min-w-[4.25rem] text-right text-sm font-medium whitespace-nowrap tabular-nums">{Math.round(scale(e, 'kcal'))} kcal</span>
+              <button class="btn-icon size-8" aria-label="Remove {e.name}" onclick={() => removeEntry(e.id)}><Icon name="x" /></button>
             </span>
           </li>
         {/each}
