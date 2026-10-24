@@ -8,6 +8,7 @@
   import EntryDetails from './lib/EntryDetails.svelte';
   import IncomingTransfer from './lib/IncomingTransfer.svelte';
   import { readIncoming } from './lib/qr.js';
+  import { celebrate } from './lib/celebrate.js';
   import Bar from './lib/Bar.svelte';
   import ProductIcon from './lib/ProductIcon.svelte';
   import Icon from './lib/Icon.svelte';
@@ -58,6 +59,15 @@
   const combo = $derived(comboStatus(date));
   const streakInfo = $derived(comboStreak(date, today));
   const streak = $derived(streakInfo.count);
+
+  // Celebrate when today's (or the shown day's) combo flips to complete while you watch, not when a finished day is merely opened.
+  let seen = { date: null, all: false };
+  $effect(() => {
+    const all = combo.all;
+    const fire = seen.date === date && !seen.all && all;
+    seen = { date, all };
+    if (fire) celebrate(streakInfo.comeback);
+  });
 
   // Badge colour follows the usual RPG item rarity ladder as the streak grows: grey, green, blue, purple, orange. A solid red outline warns that the streak
   // ends today unless the combo is completed; a dashed outline means today would use up a grace day.
@@ -180,12 +190,14 @@
   <section class="card" aria-label="Daily combo">
     <div class="flex items-center justify-between gap-2">
       <h2 class="font-semibold">Daily combo</h2>
+      {#key streak}
       <span
-        class="inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-0.5 text-sm font-medium {badgeColour} {badgeRing}"
+        class="inline-flex items-center gap-1 rounded-full border-2 px-2.5 py-0.5 text-sm font-medium motion-safe:animate-pop {badgeColour} {badgeRing}"
         aria-label="Combo streak: {streak} {streak === 1 ? 'day' : 'days'}{streakInfo.risk === 'lost' ? ', ends today unless completed' : ''}"
       >
         <Icon name="flame" />{streak} {streak === 1 ? 'day' : 'days'}
       </span>
+      {/key}
     </div>
     <ul class="divided">
       {#each comboRows as row}
@@ -221,9 +233,21 @@
       </p>
     {/if}
     {#if combo.all}
-      <p class="rounded-xl bg-emerald-50 px-3 py-2 text-center font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" role="status">
-        Combo complete!
-      </p>
+      {#if streakInfo.comeback}
+        <p
+          class="rounded-xl bg-amber-100 px-3 py-2 text-center font-semibold text-amber-900 motion-safe:animate-comeback dark:bg-amber-950 dark:text-amber-200"
+          role="status"
+        >
+          {streakInfo.comeback === 'saved' ? 'Comeback! Streak saved' : 'Comeback! A new streak begins'}
+        </p>
+      {:else}
+        <p
+          class="rounded-xl bg-emerald-50 px-3 py-2 text-center font-semibold text-emerald-800 motion-safe:animate-pop dark:bg-emerald-950 dark:text-emerald-300"
+          role="status"
+        >
+          Combo complete!
+        </p>
+      {/if}
     {/if}
   </section>
 

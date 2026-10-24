@@ -443,15 +443,25 @@ function simulate(upTo, today) {
     }
   }
   const risk = count > 0 && pending ? ((run.length ? run.length < grace : mayStartGrace(upTo)) ? 'grace' : 'lost') : null;
-  return { count, graceUsed: run.length, risk, marks };
+
+  // A comeback is a combo day right after a day that wasn't one, once there has been a combo day before:
+  // 'saved' when that missed day was forgiven (the streak lives on), 'restart' when the streak had ended.
+  let comeback = null;
+  if (marks.get(upTo) === 'combo') {
+    const prev = marks.get(addDays(upTo, -1));
+    const earlier = [...marks].some(([d, m]) => m === 'combo' && d < addDays(upTo, -1));
+    if (prev === 'forgiven') comeback = 'saved';
+    else if (prev !== 'combo' && earlier) comeback = 'restart';
+  }
+  return { count, graceUsed: run.length, risk, comeback, marks };
 }
 
-// Streak of combo days ending at `date`: { count, graceUsed, risk }.
+// Streak of combo days ending at `date`: { count, graceUsed, risk, comeback }.
 // risk is only set while today is unfinished: 'lost' if ending the day incomplete ends the streak, 'grace' if it would
 // use a grace day instead.
 export function comboStreak(date, today = todayStr()) {
-  const { count, graceUsed, risk } = simulate(date, today);
-  return { count, graceUsed, risk };
+  const { count, graceUsed, risk, comeback } = simulate(date, today);
+  return { count, graceUsed, risk, comeback };
 }
 
 // Marks days from..to for the calendar: 'combo' (all goals met) or 'forgiven' (a missed day the grace rules covered).
