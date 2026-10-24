@@ -48,8 +48,8 @@
   );
 
   const tabs = $derived([
-    ['search', 'Search online'],
-    ['saved', `My products (${pool.length})`],
+    ['search', 'Search'],
+    ['saved', 'My products'],
     ['custom', 'Custom'],
   ]);
 </script>

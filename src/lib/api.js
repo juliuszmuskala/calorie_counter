@@ -55,13 +55,13 @@ async function getJson(url, signal) {
   return res.json();
 }
 
-export async function lookupBarcode(code, signal) {
+async function lookupBarcode(code, signal) {
   const data = await getJson(`${BASE}/api/v2/product/${encodeURIComponent(stripBarcode(code))}.json?fields=${FIELDS}`, signal);
   const p = data?.status === 1 ? normalize(data.product) : null;
   return p ? [p] : [];
 }
 
-export async function searchByName(query, signal) {
+async function searchByName(query, signal) {
   const params = new URLSearchParams({
     search_terms: query.trim(),
     search_simple: '1',

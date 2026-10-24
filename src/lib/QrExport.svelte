@@ -10,7 +10,7 @@
   let copied = $state(false);
   let error = $state('');
 
-  const counts = $derived.by(() => ({ range, ...summarize(exportPayload(range)) }));
+  const counts = $derived(summarize(exportPayload(range)));
 
   $effect(() => {
     const payload = exportPayload(range);
@@ -45,9 +45,9 @@
     needs many codes, and products and recipes alone usually fit in a few. Scan all of them, in any order.
   </p>
 
-  <label class="label">Include food log
+  <label class="label">Food log to include
     <select class="field" bind:value={range}>
-      <option value="none">None: products, recipes, supplements, goals</option>
+      <option value="none">No log, only settings</option>
       <option value="7">Last 7 days</option>
       <option value="30">Last 30 days</option>
       <option value="all">Everything</option>

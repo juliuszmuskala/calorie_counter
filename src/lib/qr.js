@@ -2,7 +2,7 @@ import { renderSVG } from 'uqr';
 import { MEALS } from './store.svelte.js';
 
 // The deployed app; QR codes always point here so a phone camera opens the real site.
-export const APP_URL = 'https://juliuszmuskala.github.io/calorie_counter/';
+const APP_URL = 'https://juliuszmuskala.github.io/calorie_counter/';
 // Characters of data per QR code. Codes much denser than this (1000 was tried) are too fine for a phone camera to read off a screen.
 const CHUNK = 400;
 const STASH = 'calorie-counter:qr-parts';
@@ -61,8 +61,8 @@ function unpack(data) {
   return { ...rest, entries };
 }
 
-export const encodeData = async (obj) => toB64(await pipe(new TextEncoder().encode(JSON.stringify(pack(obj))), new CompressionStream('gzip')));
-export const decodeData = async (str) => unpack(JSON.parse(new TextDecoder().decode(await pipe(fromB64(str), new DecompressionStream('gzip')))));
+const encodeData = async (obj) => toB64(await pipe(new TextEncoder().encode(JSON.stringify(pack(obj))), new CompressionStream('gzip')));
+const decodeData = async (str) => unpack(JSON.parse(new TextDecoder().decode(await pipe(fromB64(str), new DecompressionStream('gzip')))));
 
 // ---- sending
 
@@ -99,7 +99,7 @@ export async function readIncoming() {
   const m = location.hash.match(/^#qr=([a-z0-9]+)\.(\d+)\.(\d+)\.([\w-]*)$/);
   if (!m) return null;
   history.replaceState(null, '', location.pathname + location.search);
-  const [, id, part, total, chunk] = [...m];
+  const [, id, part, total, chunk] = m;
   const i = Number(part);
   const n = Number(total);
   if (!(i >= 1 && i <= n && n <= 200)) throw new Error('This QR code is damaged.');

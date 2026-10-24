@@ -31,6 +31,12 @@
   }
 
   const factor = $derived((Number(grams) || 0) / 100);
+  // a serving label that just repeats the weight ("40 g") adds nothing
+  const servingNote = $derived.by(() => {
+    const label = selected?.servingLabel?.trim();
+    const plain = (t) => t.toLowerCase().replace(/\s|g$/g, '');
+    return label && plain(label) !== String(selected.servingGrams) ? `, ${label}` : '';
+  });
   const title = $derived(selected ? 'How much?' : mode === 'recipe' ? 'New recipe' : 'Add food');
 </script>
 
@@ -53,7 +59,7 @@
       <div class="flex flex-wrap gap-2">
         {#if selected.servingGrams}
           <button class="btn text-sm" onclick={() => (grams = selected.servingGrams)}>
-            1 serving ({selected.servingGrams} g{selected.servingLabel ? `, ${selected.servingLabel}` : ''})
+            1 serving ({selected.servingGrams} g{servingNote})
           </button>
         {/if}
         <button class="btn text-sm" onclick={() => (grams = 100)}>100 g</button>
