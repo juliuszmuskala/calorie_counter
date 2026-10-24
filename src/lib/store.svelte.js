@@ -252,10 +252,20 @@ export async function importJson(file, mode) {
   } catch {
     throw new Error('The file is not valid JSON.');
   }
+  return applyImport(parseExport(data), mode);
+}
+
+// Validates and cleans exported data (from a file or a QR transfer). Throws if it isn't ours.
+export function parseExport(data) {
   if (!data || typeof data !== 'object' || !['entries', 'products', 'supplements'].some((k) => Array.isArray(data[k]))) {
     throw new Error('This does not look like a Calorie Counter export.');
   }
-  const next = sanitize(data);
+  return sanitize(data);
+}
+
+export const summarize = (d) => ({ entries: d.entries.length, products: d.products.length, supplements: d.supplements.length });
+
+export function applyImport(next, mode) {
   if (mode === 'replace') {
     replaceAll(next);
     return `Replaced data: ${next.entries.length} entries, ${next.products.length} products.`;
@@ -272,6 +282,19 @@ export async function importJson(file, mode) {
     db.supplementLog[day] = [...new Set([...(db.supplementLog[day] ?? []), ...ids])];
   }
   return `Merged ${newE.length} new entries and ${newP.length} new products.`;
+}
+
+// What a QR transfer carries. `log` limits the diary: 'all', a number of recent days, or 'none'.
+export function exportPayload(log = 'all') {
+  const snap = $state.snapshot(db);
+  if (log === 'all') return snap;
+  const from = log === 'none' ? null : addDays(todayStr(), -(Number(log) - 1));
+  const inRange = (d) => from !== null && d >= from;
+  return {
+    ...snap,
+    entries: snap.entries.filter((e) => inRange(e.date)),
+    supplementLog: Object.fromEntries(Object.entries(snap.supplementLog).filter(([d]) => inRange(d))),
+  };
 }
 
 // ---- supplements

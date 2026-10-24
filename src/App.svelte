@@ -7,6 +7,8 @@
   import Settings from './lib/Settings.svelte';
   import DatePicker from './lib/DatePicker.svelte';
   import EntryDetails from './lib/EntryDetails.svelte';
+  import IncomingTransfer from './lib/IncomingTransfer.svelte';
+  import { readIncoming } from './lib/qr.js';
   import Bar from './lib/Bar.svelte';
   import ProductIcon from './lib/ProductIcon.svelte';
 
@@ -18,6 +20,22 @@
   let settings = $state(false);
   let viewing = $state(null); // id of the logged entry shown in the details dialog
   let picking = $state(false);
+  let incoming = $state(null); // data arriving from a scanned QR code
+
+  async function checkIncoming() {
+    try {
+      const t = await readIncoming();
+      if (t) incoming = t;
+    } catch (e) {
+      incoming = { status: 'error', message: e.message };
+    }
+  }
+  $effect(() => {
+    checkIncoming();
+    // scanning the next code while the app is already open only changes the hash
+    window.addEventListener('hashchange', checkIncoming);
+    return () => window.removeEventListener('hashchange', checkIncoming);
+  });
 
   // keep "Today" correct if the tab stays open past midnight
   $effect(() => {
@@ -161,6 +179,7 @@
 </main>
 
 {#if adding}<AddFood {date} meal={adding} onclose={() => (adding = null)} />{/if}
+{#if incoming}<IncomingTransfer transfer={incoming} onclose={() => (incoming = null)} />{/if}
 {#if picking}<DatePicker {date} {today} onpick={(d) => { date = d; picking = false; }} onclose={() => (picking = false)} />{/if}
 {#if viewing}<EntryDetails id={viewing} onclose={() => (viewing = null)} />{/if}
 {#if settings}<Settings onclose={() => (settings = false)} />{/if}
