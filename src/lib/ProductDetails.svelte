@@ -18,7 +18,7 @@
 <div class="grid gap-3">
   <div class="flex items-center gap-3">
     <ProductIcon item={p} class="size-12" />
-    <div class="grid min-w-0 gap-0.5">
+    <div class="grid min-w-0 gap-0.5 break-words">
       <strong class="text-lg">{p.name}</strong>
       {#if p.brand}<span class="muted">{p.brand}</span>{/if}
       {#if p.barcode}<span class="muted">Barcode {p.barcode}</span>{/if}

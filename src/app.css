@@ -8,6 +8,11 @@
   body {
     @apply bg-stone-100 text-base text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100;
   }
+  /* Grid columns default to `auto`, which won't shrink below the widest unbroken text and pushes the page sideways.
+     Make single-column grids shrinkable so long names truncate or wrap instead. */
+  .grid:not([class*='grid-cols']):not(.grid-flow-col) {
+    grid-template-columns: minmax(0, 1fr);
+  }
   button:not(:disabled),
   summary,
   select {
@@ -21,7 +26,7 @@
 /* Shared primitives, used across components. Everything else is inline utilities. */
 @layer components {
   .card {
-    @apply grid gap-2 rounded-2xl border border-stone-200 bg-white p-4 shadow-xs dark:border-stone-800 dark:bg-stone-900;
+    @apply grid grid-cols-[minmax(0,1fr)] gap-2 rounded-2xl border border-stone-200 bg-white p-4 shadow-xs dark:border-stone-800 dark:bg-stone-900;
   }
   .btn {
     @apply inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-base font-medium transition-colors hover:border-emerald-600 disabled:opacity-50 dark:border-stone-700 dark:bg-stone-900 dark:hover:border-emerald-500;

@@ -37,7 +37,7 @@
 <Modal {title} {onclose} confirmClose={mode === 'recipe' && !selected ? 'Discard this recipe?' : null}>
   {#if selected}
     <div class="grid gap-3">
-      <div class="grid gap-0.5">
+      <div class="grid gap-0.5 break-words">
         <strong class="text-lg">{selected.name}</strong>
         {#if selected.brand}<span class="muted">{selected.brand}</span>{/if}
         <span class="muted">

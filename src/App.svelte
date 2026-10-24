@@ -85,16 +85,20 @@
     </p>
   {/if}
 
-  <div class="relative flex items-center justify-center gap-1">
-    <button class="btn-icon" onclick={() => (date = addDays(date, -1))} aria-label="Previous day"><Icon name="chevron-left" class="size-6" /></button>
-    <button class="min-w-40 rounded-lg px-3 py-1.5 text-center text-lg font-semibold hover:bg-stone-200 dark:hover:bg-stone-800" onclick={() => (picking = true)}>
-      {label}
-    </button>
-    <button class="btn-icon" onclick={() => (date = addDays(date, 1))} aria-label="Next day"><Icon name="chevron-right" class="size-6" /></button>
-    {#if date !== today}
-      <!-- absolutely placed so it never shifts the centered date controls -->
-      <button class="btn absolute right-0 min-h-8 px-2.5 py-1 text-sm" onclick={() => (date = today)}>Today</button>
-    {/if}
+  <div class="grid justify-items-center">
+    <div class="flex items-center justify-center gap-1">
+      <button class="btn-icon" onclick={() => (date = addDays(date, -1))} aria-label="Previous day"><Icon name="chevron-left" class="size-6" /></button>
+      <button class="min-w-40 rounded-lg px-3 py-1.5 text-center text-lg font-semibold hover:bg-stone-200 dark:hover:bg-stone-800" onclick={() => (picking = true)}>
+        {label}
+      </button>
+      <button class="btn-icon" onclick={() => (date = addDays(date, 1))} aria-label="Next day"><Icon name="chevron-right" class="size-6" /></button>
+    </div>
+    <!-- fixed height so showing the button never moves anything -->
+    <div class="h-7">
+      {#if date !== today}
+        <button class="rounded-lg px-2.5 py-0.5 text-sm font-medium text-emerald-700 hover:bg-stone-200 dark:text-emerald-400 dark:hover:bg-stone-800" onclick={() => (date = today)}>Back to today</button>
+      {/if}
+    </div>
   </div>
 
   <section class="card gap-3" aria-label="Daily summary">
@@ -147,15 +151,15 @@
       </div>
       <ul class="divided">
         {#each mealEntries(m) as e (e.id)}
-          <li class="flex items-center justify-between gap-2">
-            <button class="-mx-2 flex min-w-0 items-center gap-3 rounded-lg px-2 py-1 text-left hover:bg-stone-100 dark:hover:bg-stone-800" onclick={() => (viewing = e.id)} aria-label="Nutrition details for {e.name}">
+          <li class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <button class="-mx-2 flex min-w-0 flex-1 basis-44 items-center gap-3 rounded-lg px-2 py-1 text-left hover:bg-stone-100 dark:hover:bg-stone-800" onclick={() => (viewing = e.id)} aria-label="Nutrition details for {e.name}">
               <ProductIcon item={e} />
               <span class="min-w-0">
-                <span class="block truncate">{e.name}</span>
+                <span class="line-clamp-2 break-words">{e.name}</span>
                 {#if e.brand}<span class="muted block truncate">{e.brand}</span>{/if}
               </span>
             </button>
-            <span class="flex shrink-0 items-center gap-1">
+            <span class="ml-auto flex shrink-0 items-center gap-1">
               <input
                 class="field w-20 px-2 py-1"
                 type="number"
@@ -167,7 +171,7 @@
                 aria-label="Grams of {e.name}"
               />
               <span class="muted">g</span>
-              <span class="w-20 text-right text-sm font-medium tabular-nums">{Math.round(scale(e, 'kcal'))} kcal</span>
+              <span class="min-w-20 text-right text-sm font-medium whitespace-nowrap tabular-nums">{Math.round(scale(e, 'kcal'))} kcal</span>
               <button class="btn-icon" aria-label="Remove {e.name}" onclick={() => removeEntry(e.id)}><Icon name="x" /></button>
             </span>
           </li>

@@ -86,7 +86,7 @@
           <button class="btn flex w-full justify-start gap-3 px-4 py-2.5 text-left" onclick={() => onpick(p)}>
             <ProductIcon item={p} />
             <span class="grid min-w-0 justify-items-start">
-              <strong class="font-semibold">{p.name}</strong>
+              <strong class="font-semibold break-words">{p.name}</strong>
               <span class="muted">{p.brand}{p.brand && p.barcode ? ' · ' : ''}{p.barcode}</span>
               <span class="text-sm text-emerald-700 dark:text-emerald-400">{p.kcal} kcal/100g</span>
             </span>
@@ -103,7 +103,7 @@
           <button class="btn flex w-full justify-start gap-3 px-4 py-2.5 text-left" onclick={() => onpick(p)}>
             <ProductIcon item={p} />
             <span class="grid min-w-0 justify-items-start">
-              <strong class="font-semibold">{p.name}</strong>
+              <strong class="font-semibold break-words">{p.name}</strong>
               {#if p.brand}<span class="muted">{p.brand}</span>{/if}
               <span class="text-sm text-emerald-700 dark:text-emerald-400">{p.kcal} kcal/100g</span>
             </span>

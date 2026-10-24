@@ -32,7 +32,7 @@
 >
   <div class="grid content-start gap-3 p-4">
     <header class="flex items-center justify-between gap-2">
-      <h2 class="text-lg font-semibold">{title}</h2>
+      <h2 class="min-w-0 text-lg font-semibold break-words">{title}</h2>
       <button class="btn-icon" onclick={tryClose} aria-label="Close"><Icon name="x" /></button>
     </header>
     {@render children()}
