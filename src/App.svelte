@@ -1,7 +1,6 @@
 <script>
-  import Icon from './lib/Icon.svelte';
   import {
-    db, ui, MEALS, todayStr, addDays, removeEntry, scale, totals, startPersisting, isDue, isTaken, toggleSupplement,
+    db, ui, MEALS, todayStr, addDays, removeEntry, scale, totals, startPersisting, isDue, isTaken, toggleSupplement, comboStatus, comboStreak,
   } from './lib/store.svelte.js';
   import AddFood from './lib/AddFood.svelte';
   import Settings from './lib/Settings.svelte';
@@ -11,6 +10,7 @@
   import { readIncoming } from './lib/qr.js';
   import Bar from './lib/Bar.svelte';
   import ProductIcon from './lib/ProductIcon.svelte';
+  import Icon from './lib/Icon.svelte';
 
   $effect(startPersisting);
 
@@ -52,7 +52,39 @@
   const dayEntries = $derived(db.entries.filter((e) => e.date === date));
   const sum = $derived(totals(dayEntries));
   const remaining = $derived(db.goals.kcal - sum.kcal);
-  const dueSupplements = $derived(db.supplements.filter((s) => isDue(s, date)));
+  const dueSupplements = $derived(db.supplements.filter((s) => s.group !== 'activity' && isDue(s, date)));
+  const dueActivities = $derived(db.supplements.filter((s) => s.group === 'activity' && isDue(s, date)));
+
+  const combo = $derived(comboStatus(date));
+  const streakInfo = $derived(comboStreak(date, today));
+  const streak = $derived(streakInfo.count);
+  const r0 = (n) => Math.round(n);
+  const comboRows = $derived([
+    {
+      label: 'All supplements',
+      ok: combo.supplements.ok,
+      detail: combo.supplements.total ? `${combo.supplements.done} of ${combo.supplements.total} taken` : 'none due today',
+    },
+    ...(db.goals.comboActivities
+      ? [
+          {
+            label: 'All activities',
+            ok: combo.activities.ok,
+            detail: combo.activities.total ? `${combo.activities.done} of ${combo.activities.total} done` : 'rest day, nothing due',
+          },
+        ]
+      : []),
+    {
+      label: 'Protein and fiber',
+      ok: combo.proteinFiber.ok,
+      detail: `Protein ${r0(sum.protein)}/${db.goals.protein} g · Fiber ${r0(sum.fiber)}/${db.goals.fiber} g`,
+    },
+    {
+      label: 'Calories on target',
+      ok: combo.calories.ok,
+      detail: `${r0(sum.kcal)} of ${db.goals.kcal} kcal (±${db.goals.kcalTolerance})`,
+    },
+  ]);
 
   const label = $derived(
     date === today
@@ -94,9 +126,9 @@
       <button class="btn-icon" onclick={() => (date = addDays(date, 1))} aria-label="Next day"><Icon name="chevron-right" class="size-6" /></button>
     </div>
     <!-- fixed height so showing the button never moves anything -->
-    <div class="h-7">
+    <div class="-mt-1 h-6">
       {#if date !== today}
-        <button class="rounded-lg px-2.5 py-0.5 text-sm font-medium text-emerald-700 hover:bg-stone-200 dark:text-emerald-400 dark:hover:bg-stone-800" onclick={() => (date = today)}>Back to today</button>
+        <button class="rounded-lg px-2.5 text-sm font-medium text-emerald-700 hover:bg-stone-200 dark:text-emerald-400 dark:hover:bg-stone-800" onclick={() => (date = today)}>Back to today</button>
       {/if}
     </div>
   </div>
@@ -126,22 +158,63 @@
     <p class="muted">Carbs {Math.round(sum.carbs)} g · Fat {Math.round(sum.fat)} g · Salt {Math.round(sum.salt * 10) / 10} g</p>
   </section>
 
-  {#if dueSupplements.length}
-    <section class="card" aria-label="Supplements">
-      <h2 class="font-semibold">Supplements</h2>
-      <ul class="divided">
-        {#each dueSupplements as s (s.id)}
-          {@const taken = isTaken(s.id, date)}
-          <li>
-            <label class="flex cursor-pointer items-center gap-3">
-              <input class="size-5 accent-emerald-600" type="checkbox" checked={taken} onchange={() => toggleSupplement(s.id, date)} />
-              <span class={taken ? 'text-stone-400 line-through dark:text-stone-500' : ''}>{s.name}</span>
-            </label>
-          </li>
-        {/each}
-      </ul>
-    </section>
-  {/if}
+  <section class="card" aria-label="Daily combo">
+    <div class="flex items-center justify-between gap-2">
+      <h2 class="font-semibold">Daily combo</h2>
+      <span
+        class="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-medium
+          {streak > 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' : 'bg-stone-100 text-stone-500 dark:bg-stone-800 dark:text-stone-400'}"
+      >
+        <Icon name="flame" />{streak} {streak === 1 ? 'day' : 'days'}
+      </span>
+    </div>
+    <ul class="divided">
+      {#each comboRows as row}
+        <li class="flex items-center gap-3">
+          <span
+            class="inline-flex size-6 shrink-0 items-center justify-center rounded-full border-2
+              {row.ok ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-stone-300 dark:border-stone-700'}"
+          >
+            {#if row.ok}<Icon name="check" class="size-4" />{/if}
+          </span>
+          <span class="min-w-0">
+            <span class="block">{row.label}</span>
+            <span class="muted block">{row.detail}</span>
+          </span>
+        </li>
+      {/each}
+    </ul>
+    {#if streakInfo.graceUsed > 0 && !combo.all}
+      <p class="muted">
+        {streakInfo.graceUsed === 1 ? 'A missed day is being forgiven' : `${streakInfo.graceUsed} missed days are being forgiven`}.
+        Complete the combo to keep the streak going.
+      </p>
+    {/if}
+    {#if combo.all}
+      <p class="rounded-xl bg-emerald-50 px-3 py-2 text-center font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" role="status">
+        Combo complete!
+      </p>
+    {/if}
+  </section>
+
+  {#each [['Supplements', dueSupplements], ['Activity', dueActivities]] as [title, items]}
+    {#if items.length}
+      <section class="card" aria-label={title}>
+        <h2 class="font-semibold">{title}</h2>
+        <ul class="divided">
+          {#each items as s (s.id)}
+            {@const taken = isTaken(s.id, date)}
+            <li>
+              <label class="flex cursor-pointer items-center gap-3">
+                <input class="size-5 shrink-0 accent-emerald-600" type="checkbox" checked={taken} onchange={() => toggleSupplement(s.id, date)} />
+                <span class={taken ? 'text-stone-400 line-through dark:text-stone-500' : ''}>{s.name}</span>
+              </label>
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+  {/each}
 
   {#each MEALS as m}
     <section class="card" aria-label={m}>

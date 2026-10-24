@@ -57,9 +57,9 @@
   }
   /* custom chevron so selects match the inputs instead of the native OS look */
   select.field {
-    @apply appearance-none bg-no-repeat pr-10;
+    @apply appearance-none bg-no-repeat pr-8;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2378716c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 8 5 5 5-5'/%3E%3C/svg%3E");
-    background-position: right 0.75rem center;
-    background-size: 1.1rem;
+    background-position: right 0.5rem center;
+    background-size: 1rem;
   }
 }

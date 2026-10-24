@@ -22,18 +22,26 @@ const dayNumber = (date) => Math.round(Date.parse(date + 'T00:00:00Z') / 8640000
 
 // ---- defaults & validation
 
+// "Supplements" holds every daily checkbox item. `group` tells them apart: 'supplement' or 'activity' (steps, workouts).
+// The field names stay as they were so existing saved data and exports keep working.
+const defaultActivities = () => [
+  { id: 'steps', name: 'Daily step goal', group: 'activity', schedule: { type: 'daily' } },
+  { id: 'strength', name: 'Strength workout', group: 'activity', schedule: { type: 'weekdays', days: [1, 3, 5] } }, // Mon, Wed, Fri
+];
+
 const defaultSupplements = () => [
-  { id: 'creatine', name: 'Creatine', schedule: { type: 'daily' } },
-  { id: 'citrulline', name: 'Citrulline', schedule: { type: 'daily' } },
-  { id: 'd3', name: 'D3', schedule: { type: 'daily' } },
-  { id: 'b12', name: 'B12', schedule: { type: 'daily' } },
-  { id: 'zinc', name: 'Zinc', schedule: { type: 'weekday', day: 1 } }, // Mondays
-  { id: 'magnesium', name: 'Magnesium', schedule: { type: 'interval', every: 2, anchor: todayStr() } },
+  { id: 'creatine', name: 'Creatine', group: 'supplement', schedule: { type: 'daily' } },
+  { id: 'citrulline', name: 'Citrulline', group: 'supplement', schedule: { type: 'daily' } },
+  { id: 'd3', name: 'D3', group: 'supplement', schedule: { type: 'daily' } },
+  { id: 'b12', name: 'B12', group: 'supplement', schedule: { type: 'daily' } },
+  { id: 'zinc', name: 'Zinc', group: 'supplement', schedule: { type: 'weekday', day: 1 } }, // Mondays
+  { id: 'magnesium', name: 'Magnesium', group: 'supplement', schedule: { type: 'interval', every: 2, anchor: todayStr() } },
+  ...defaultActivities(),
 ];
 
 const defaults = () => ({
-  version: 1,
-  goals: { kcal: 2100, protein: 120, fiber: 40 },
+  version: 2,
+  goals: { kcal: 2100, kcalTolerance: 100, protein: 120, fiber: 40, comboActivities: true, comboGraceDays: 1 },
   supplements: defaultSupplements(),
   supplementLog: {}, // { 'YYYY-MM-DD': [supplementId, ...] }
   products: [], // saved/custom products and recipes, nutrition per 100 g
@@ -94,14 +102,25 @@ function cleanSupplement(s) {
   const r = s.schedule ?? {};
   let schedule = { type: 'daily' };
   if (r.type === 'weekday' && Number.isInteger(r.day) && r.day >= 0 && r.day <= 6) schedule = { type: 'weekday', day: r.day };
+  if (r.type === 'weekdays' && Array.isArray(r.days)) {
+    const days = [...new Set(r.days.filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
+    if (days.length) schedule = { type: 'weekdays', days };
+  }
   if (r.type === 'interval') {
     const every = Number.isInteger(r.every) && r.every >= 2 ? r.every : 2;
     schedule = { type: 'interval', every, anchor: isDateStr(r.anchor) ? r.anchor : todayStr() };
   }
-  return { id: str(s.id) || uid(), name: s.name.trim(), schedule };
+  return { id: str(s.id) || uid(), name: s.name.trim(), group: s.group === 'activity' ? 'activity' : 'supplement', schedule };
 }
 
 const clean = (list, fn) => (Array.isArray(list) ? list.map(fn).filter(Boolean) : []);
+
+// Data from before activities existed (version 1) gets the default activity items once.
+function withDefaultActivities(d, items) {
+  if ((d?.version ?? 1) >= 2) return items;
+  const have = new Set(items.map((s) => s.id));
+  return [...items, ...defaultActivities().filter((a) => !have.has(a.id))];
+}
 
 function sanitize(d) {
   const base = defaults();
@@ -113,12 +132,19 @@ function sanitize(d) {
   }
   const g = d?.goals;
   return {
-    version: 1,
+    version: 2,
     // data saved before fiber goals existed carries the old default goals; drop them
     goals: g && 'fiber' in g
-      ? { kcal: nonNeg(g.kcal) || base.goals.kcal, protein: nonNeg(g.protein), fiber: nonNeg(g.fiber) }
+      ? {
+          kcal: nonNeg(g.kcal) || base.goals.kcal,
+          kcalTolerance: 'kcalTolerance' in g ? nonNeg(g.kcalTolerance) : base.goals.kcalTolerance,
+          protein: nonNeg(g.protein),
+          fiber: nonNeg(g.fiber),
+          comboActivities: g.comboActivities !== false,
+          comboGraceDays: 'comboGraceDays' in g ? Math.floor(nonNeg(g.comboGraceDays)) : base.goals.comboGraceDays,
+        }
       : base.goals,
-    supplements: Array.isArray(d?.supplements) ? clean(d.supplements, cleanSupplement) : base.supplements,
+    supplements: Array.isArray(d?.supplements) ? withDefaultActivities(d, clean(d.supplements, cleanSupplement)) : base.supplements,
     supplementLog: log,
     products: clean(d?.products, cleanProduct),
     entries: clean(d?.entries, cleanEntry),
@@ -302,6 +328,7 @@ export function exportPayload(log = 'all') {
 export function isDue(s, date) {
   const r = s.schedule ?? { type: 'daily' };
   if (r.type === 'weekday') return new Date(date + 'T12:00:00').getDay() === r.day;
+  if (r.type === 'weekdays') return r.days.includes(new Date(date + 'T12:00:00').getDay());
   if (r.type === 'interval') {
     const every = r.every >= 2 ? r.every : 2;
     return (((dayNumber(date) - dayNumber(r.anchor)) % every) + every) % every === 0;
@@ -325,6 +352,60 @@ export function removeSupplement(id) {
 
 export function describeSchedule(r) {
   if (r.type === 'weekday') return `every ${WEEKDAYS[r.day]}`;
+  if (r.type === 'weekdays') return r.days.map((d) => WEEKDAYS[d].slice(0, 3)).join(', ');
   if (r.type === 'interval') return r.every === 2 ? 'every second day' : `every ${r.every} days`;
   return 'daily';
+}
+
+// Adds a new item or updates the one with the same id.
+export function saveSupplement(item) {
+  const existing = db.supplements.find((s) => s.id === item.id);
+  if (existing) Object.assign(existing, item);
+  else db.supplements.push({ ...item, id: item.id ?? uid() });
+}
+
+// ---- daily combo: supplements all taken + activities done + protein & fiber reached + calories within tolerance
+
+function dayStatus(date, t) {
+  const due = db.supplements.filter((s) => s.group !== 'activity' && isDue(s, date));
+  const taken = due.filter((s) => isTaken(s.id, date)).length;
+  const { kcal, kcalTolerance, protein, fiber, comboActivities } = db.goals;
+  const supplements = { done: taken, total: due.length, ok: taken === due.length };
+  const dueActivities = db.supplements.filter((s) => s.group === 'activity' && isDue(s, date));
+  const doneActivities = dueActivities.filter((s) => isTaken(s.id, date)).length;
+  // a rest day (nothing due) counts as done; when the option is off activities never block the combo
+  const activities = { done: doneActivities, total: dueActivities.length, ok: !comboActivities || doneActivities === dueActivities.length };
+  const proteinFiber = { ok: t.protein >= protein && t.fiber >= fiber };
+  const calories = { ok: t.kcal > 0 && Math.abs(t.kcal - kcal) <= kcalTolerance };
+  return { supplements, activities, proteinFiber, calories, all: supplements.ok && activities.ok && proteinFiber.ok && calories.ok };
+}
+
+export function comboStatus(date) {
+  return dayStatus(date, totals(db.entries.filter((e) => e.date === date)));
+}
+
+// Streak of combo days ending at `date`. Missing up to `comboGraceDays` days in a row doesn't break it: those days just
+// don't count. A day that isn't finished yet (today) is never treated as a miss.
+// Returns { count, graceUsed }; graceUsed is how many days since the last combo day are being forgiven right now.
+export function comboStreak(date, today = todayStr()) {
+  const byDate = new Map();
+  for (const e of db.entries) {
+    if (!byDate.has(e.date)) byDate.set(e.date, []);
+    byDate.get(e.date).push(e);
+  }
+  const empty = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, salt: 0 };
+  const grace = db.goals.comboGraceDays ?? 0;
+  let count = 0;
+  let misses = 0;
+  let graceUsed = 0;
+  for (let d = date, i = 0; i < 400; d = addDays(d, -1), i++) {
+    if (dayStatus(d, byDate.has(d) ? totals(byDate.get(d)) : empty).all) {
+      if (count === 0) graceUsed = misses;
+      count++;
+      misses = 0;
+    } else if (!(d === date && d === today)) {
+      if (++misses > grace) break;
+    }
+  }
+  return { count, graceUsed };
 }

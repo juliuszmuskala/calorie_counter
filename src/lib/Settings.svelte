@@ -1,7 +1,7 @@
 <script>
   import Icon from './Icon.svelte';
   import {
-    db, exportJson, importJson, removeProduct, saveProduct, removeSupplement, describeSchedule, uid, todayStr, isDateStr, resetAll, WEEKDAYS,
+    db, exportJson, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS,
   } from './store.svelte.js';
   import Modal from './Modal.svelte';
   import RecipeBuilder from './RecipeBuilder.svelte';
@@ -18,18 +18,42 @@
   let viewingId = $state(null); // product whose nutrition is shown
   const viewing = $derived(db.products.find((p) => p.id === viewingId));
 
-  let newSupp = $state({ name: '', type: 'daily', day: 1, every: 2, anchor: todayStr() });
-  function addSupplement(e) {
+  // add/edit form for supplements and activities
+  const blankItem = () => ({ id: undefined, name: '', group: 'supplement', type: 'daily', days: [1], every: 2, anchor: todayStr() });
+  let item = $state(blankItem());
+
+  function editItem(s) {
+    const r = s.schedule;
+    item = {
+      ...blankItem(),
+      id: s.id,
+      name: s.name,
+      group: s.group ?? 'supplement',
+      type: r.type === 'weekday' ? 'weekdays' : r.type,
+      days: r.type === 'weekday' ? [r.day] : r.type === 'weekdays' ? [...r.days] : [1],
+      every: r.every ?? 2,
+      anchor: r.anchor ?? todayStr(),
+    };
+  }
+
+  function toggleDay(d) {
+    item.days = item.days.includes(d) ? item.days.filter((x) => x !== d) : [...item.days, d].sort((a, b) => a - b);
+  }
+
+  const itemValid = $derived(item.name.trim() && (item.type !== 'weekdays' || item.days.length > 0));
+
+  function submitItem(e) {
     e.preventDefault();
-    const { name, type, day, every, anchor } = newSupp;
+    if (!itemValid) return;
+    const { id, name, group, type, days, every, anchor } = item;
     const schedule =
-      type === 'weekday'
-        ? { type, day: Number(day) }
+      type === 'weekdays'
+        ? { type, days: [...days] }
         : type === 'interval'
           ? { type, every: Math.max(2, Math.round(Number(every)) || 2), anchor: isDateStr(anchor) ? anchor : todayStr() }
-          : { type };
-    db.supplements.push({ id: uid(), name: name.trim(), schedule });
-    newSupp.name = '';
+          : { type: 'daily' };
+    saveSupplement({ id, name: name.trim(), group, schedule });
+    item = blankItem();
   }
 
   async function onFile(e) {
@@ -78,47 +102,80 @@
   {:else}
     <section class="grid gap-2">
       <h3 class="font-semibold">Daily goals</h3>
-      <div class="grid grid-cols-3 gap-2">
+      <div class="grid grid-cols-2 gap-2">
         <label class="label">Calories<input class="field" type="number" min="0" inputmode="numeric" value={db.goals.kcal} onchange={(e) => setGoal('kcal', e)} /></label>
+        <label class="label">Calorie margin ± kcal<input class="field" type="number" min="0" inputmode="numeric" value={db.goals.kcalTolerance} onchange={(e) => setGoal('kcalTolerance', e)} /></label>
         <label class="label">Protein g<input class="field" type="number" min="0" inputmode="numeric" value={db.goals.protein} onchange={(e) => setGoal('protein', e)} /></label>
         <label class="label">Fiber g<input class="field" type="number" min="0" inputmode="numeric" value={db.goals.fiber} onchange={(e) => setGoal('fiber', e)} /></label>
       </div>
+
+      <h4 class="mt-1 text-sm font-semibold">Daily combo</h4>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="label">Forgiven missed days<input class="field" type="number" min="0" step="1" inputmode="numeric" value={db.goals.comboGraceDays} onchange={(e) => setGoal('comboGraceDays', e)} /></label>
+      </div>
+      <label class="flex items-start gap-2">
+        <input class="mt-0.5 size-5 shrink-0 accent-emerald-600" type="checkbox" bind:checked={db.goals.comboActivities} />
+        Activities count towards the combo
+      </label>
     </section>
 
     <section class="grid gap-2">
-      <h3 class="font-semibold">Supplements</h3>
+      <h3 class="font-semibold">Supplements and activities</h3>
       <ul class="divided">
         {#each db.supplements as s (s.id)}
           <li class="flex items-center justify-between gap-2">
-            <span>{s.name} <span class="muted">{describeSchedule(s.schedule)}</span></span>
-            <button class="btn-icon" aria-label="Delete {s.name}" onclick={() => removeSupplement(s.id)}><Icon name="trash" /></button>
+            <span class="min-w-0">
+              <span class="break-words">{s.name}</span>
+              <span class="muted block">{s.group === 'activity' ? 'Activity' : 'Supplement'} · {describeSchedule(s.schedule)}</span>
+            </span>
+            <span class="flex shrink-0">
+              <button class="btn-icon" aria-label="Edit {s.name}" onclick={() => editItem(s)}><Icon name="pencil" /></button>
+              <button class="btn-icon" aria-label="Delete {s.name}" onclick={() => removeSupplement(s.id)}><Icon name="trash" /></button>
+            </span>
           </li>
         {:else}
-          <li class="muted">No supplements.</li>
+          <li class="muted">Nothing here yet.</li>
         {/each}
       </ul>
-      <form class="grid gap-2 rounded-xl bg-stone-50 p-3 dark:bg-stone-950" onsubmit={addSupplement}>
-        <div class="grid grid-cols-2 gap-2">
-          <label class="label">Name<input class="field" required bind:value={newSupp.name} /></label>
+      <form class="grid gap-2 rounded-xl bg-stone-50 p-3 dark:bg-stone-950" onsubmit={submitItem}>
+        <strong class="text-sm">{item.id ? 'Edit item' : 'Add item'}</strong>
+        <label class="label">Name<input class="field" required bind:value={item.name} placeholder="e.g. Mobility, Omega-3" /></label>
+        <div class="grid grid-cols-[11fr_10fr] gap-2">
+          <label class="label">Type
+            <select class="field" bind:value={item.group}>
+              <option value="supplement">Supplement</option>
+              <option value="activity">Activity</option>
+            </select>
+          </label>
           <label class="label">Schedule
-            <select class="field" bind:value={newSupp.type}>
+            <select class="field" bind:value={item.type}>
               <option value="daily">Daily</option>
-              <option value="weekday">Weekly on a day</option>
-              <option value="interval">Every N days</option>
+              <option value="weekdays">Weekdays</option>
+              <option value="interval">Interval</option>
             </select>
           </label>
         </div>
-        {#if newSupp.type === 'weekday'}
-          <label class="label">Day
-            <select class="field" bind:value={newSupp.day}>{#each WEEKDAYS as d, i}<option value={i}>{d}</option>{/each}</select>
-          </label>
-        {:else if newSupp.type === 'interval'}
+        {#if item.type === 'weekdays'}
+          <div class="grid grid-cols-7 gap-1" role="group" aria-label="Weekdays">
+            {#each WEEKDAYS as d, i}
+              <button
+                type="button"
+                class="btn min-h-9 px-0 py-1 text-sm {item.days.includes(i) ? 'btn-primary' : ''}"
+                aria-pressed={item.days.includes(i)}
+                onclick={() => toggleDay(i)}>{d.slice(0, 3)}</button
+              >
+            {/each}
+          </div>
+        {:else if item.type === 'interval'}
           <div class="grid grid-cols-2 gap-2">
-            <label class="label">Every (days)<input class="field" type="number" min="2" inputmode="numeric" bind:value={newSupp.every} /></label>
-            <label class="label">Counting from<input class="field" type="date" bind:value={newSupp.anchor} /></label>
+            <label class="label">Every (days)<input class="field" type="number" min="2" inputmode="numeric" bind:value={item.every} /></label>
+            <label class="label">Counting from<input class="field" type="date" bind:value={item.anchor} /></label>
           </div>
         {/if}
-        <button class="btn">Add supplement</button>
+        <div class="grid grid-flow-col auto-cols-fr gap-2">
+          {#if item.id}<button type="button" class="btn" onclick={() => (item = blankItem())}>Cancel</button>{/if}
+          <button class="btn" disabled={!itemValid}>{item.id ? 'Save changes' : 'Add'}</button>
+        </div>
       </form>
     </section>
 
