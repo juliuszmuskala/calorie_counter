@@ -224,15 +224,16 @@
       </div>
       <ul class="divided">
         {#each mealEntries(m) as e (e.id)}
-          <li class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-            <button class="-mx-2 flex min-w-0 flex-1 basis-32 items-center gap-3 rounded-lg px-2 py-1 text-left hover:bg-stone-100 dark:hover:bg-stone-800" onclick={() => (viewing = e.id)} aria-label="Nutrition details for {e.name}">
+          <!-- phones: name on top, controls underneath; wider screens: one line -->
+          <li class="grid gap-1 sm:flex sm:items-center sm:justify-between sm:gap-2">
+            <button class="-mx-2 flex min-w-0 items-center gap-3 rounded-lg sm:flex-1 px-2 py-1 text-left hover:bg-stone-100 dark:hover:bg-stone-800" onclick={() => (viewing = e.id)} aria-label="Nutrition details for {e.name}">
               <ProductIcon item={e} />
               <span class="min-w-0">
                 <span class="line-clamp-2 break-words">{e.name}</span>
                 {#if e.brand}<span class="muted block truncate">{e.brand}</span>{/if}
               </span>
             </button>
-            <span class="ml-auto flex shrink-0 items-center gap-1">
+            <span class="flex items-center gap-1 pl-[3.25rem] sm:shrink-0 sm:pl-0">
               <input
                 class="field w-[4.25rem] px-2 py-1"
                 type="number"
@@ -244,7 +245,7 @@
                 aria-label="Grams of {e.name}"
               />
               <span class="muted">g</span>
-              <span class="min-w-[4.25rem] text-right text-sm font-medium whitespace-nowrap tabular-nums">{Math.round(scale(e, 'kcal'))} kcal</span>
+              <span class="ml-auto min-w-[4.25rem] text-right text-sm font-medium whitespace-nowrap tabular-nums sm:ml-0">{Math.round(scale(e, 'kcal'))} kcal</span>
               <button class="btn-icon size-8" aria-label="Remove {e.name}" onclick={() => removeEntry(e.id)}><Icon name="x" /></button>
             </span>
           </li>
