@@ -136,7 +136,7 @@
 
 <main class="mx-auto grid max-w-2xl gap-3 px-4 py-4 pb-16">
   <header class="flex items-center justify-between">
-    <h1 class="text-xl font-bold">Calorie Counter</h1>
+    <h1 class="text-xl font-bold">sudo upgrade</h1>
     <button class="btn-icon" onclick={() => (settings = true)} aria-label="Settings"><Icon name="settings" class="size-[1.3rem]" /></button>
   </header>
 

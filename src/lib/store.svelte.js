@@ -287,7 +287,7 @@ export async function importJson(file, mode) {
 // Validates and cleans exported data (from a file or a QR transfer). Throws if it isn't ours.
 export function parseExport(data) {
   if (!data || typeof data !== 'object' || !['entries', 'products', 'supplements'].some((k) => Array.isArray(data[k]))) {
-    throw new Error('This does not look like a Calorie Counter export.');
+    throw new Error('This does not look like a sudo upgrade export.');
   }
   return sanitize(data);
 }
