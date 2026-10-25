@@ -5,6 +5,7 @@
   } from './store.svelte.js';
   import Modal from './Modal.svelte';
   import RecipeBuilder from './RecipeBuilder.svelte';
+  import ProductForm from './ProductForm.svelte';
   import ProductDetails from './ProductDetails.svelte';
   import ProductIcon from './ProductIcon.svelte';
   import QrExport from './QrExport.svelte';
@@ -14,6 +15,7 @@
   let msg = $state('');
   let fileInput = $state();
   let editing = $state(null); // recipe being edited
+  let editingProduct = $state(null); // non-recipe product being edited
   let showQr = $state(false);
   let viewingId = $state(null); // product whose nutrition is shown
   const viewing = $derived(db.products.find((p) => p.id === viewingId));
@@ -84,7 +86,7 @@
   }
 </script>
 
-<Modal title={editing ? 'Edit recipe' : viewing ? 'Product' : showQr ? 'Transfer via QR code' : 'Settings'} {onclose} confirmClose={editing ? 'Discard changes to this recipe?' : null}>
+<Modal title={editing ? 'Edit recipe' : editingProduct ? 'Edit product' : viewing ? 'Product' : showQr ? 'Transfer via QR code' : 'Settings'} {onclose} confirmClose={editing ? 'Discard changes to this recipe?' : null}>
   {#if editing}
     <RecipeBuilder
       initial={editing}
@@ -95,10 +97,22 @@
       }}
       oncancel={() => (editing = null)}
     />
+  {:else if editingProduct}
+    <ProductForm
+      initial={editingProduct}
+      submitLabel="Save changes"
+      onsubmit={(p) => {
+        saveProduct(p);
+        editingProduct = null;
+      }}
+      oncancel={() => (editingProduct = null)}
+    />
   {:else if showQr}
     <QrExport onback={() => (showQr = false)} />
   {:else if viewing}
-    <ProductDetails product={viewing} onback={() => (viewingId = null)} onedit={viewing.source === 'recipe' ? () => (editing = viewing) : null} />
+    <ProductDetails product={viewing} onback={() => (viewingId = null)} onedit={viewing.source === 'recipe' ? () => (editing = viewing) : null}
+      oneditproduct={viewing.source !== 'recipe' ? () => (editingProduct = viewing) : null}
+    />
   {:else}
     <section class="grid gap-2">
       <h3 class="font-semibold">Daily goals</h3>

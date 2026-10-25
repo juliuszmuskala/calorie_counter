@@ -1,8 +1,14 @@
 <script>
-  let { submitLabel = 'Continue', onsubmit } = $props();
+  import Icon from './Icon.svelte';
+  import Scanner from './Scanner.svelte';
 
-  let f = $state({ name: '', brand: '', barcode: '', kcal: '', protein: '', carbs: '', fat: '', fiber: '', salt: '', servingGrams: '', servingLabel: '' });
+  // initial: an existing product to edit (keeps its id and source); oncancel adds a Cancel button.
+  let { submitLabel = 'Continue', onsubmit, initial = null, oncancel = null } = $props();
+
+  const blank = { name: '', brand: '', barcode: '', kcal: '', protein: '', carbs: '', fat: '', fiber: '', salt: '', servingGrams: '', servingLabel: '' };
+  let f = $state(initial ? { ...blank, ...Object.fromEntries(Object.keys(blank).map((k) => [k, initial[k] ?? ''])) } : { ...blank });
   let save = $state(true);
+  let scanning = $state(false);
 
   const n = (v) => (v === '' || v == null ? 0 : Number(v));
 
@@ -10,6 +16,7 @@
     e.preventDefault();
     onsubmit(
       {
+        ...(initial && { id: initial.id }),
         name: f.name.trim(),
         brand: f.brand.trim(),
         barcode: f.barcode.trim(),
@@ -21,7 +28,7 @@
         salt: n(f.salt),
         servingGrams: n(f.servingGrams) > 0 ? n(f.servingGrams) : null,
         servingLabel: f.servingLabel.trim(),
-        source: 'custom',
+        source: initial?.source ?? 'custom',
       },
       save,
     );
@@ -32,7 +39,12 @@
   <label class="label">Name *<input class="field" required bind:value={f.name} placeholder="e.g. Grandma's lasagne" /></label>
   <div class="grid grid-cols-2 gap-2">
     <label class="label">Brand<input class="field" bind:value={f.brand} /></label>
-    <label class="label">Barcode<input class="field" bind:value={f.barcode} inputmode="numeric" /></label>
+    <label class="label">Barcode
+      <span class="flex gap-1.5">
+        <input class="field min-w-0" bind:value={f.barcode} inputmode="numeric" />
+        <button type="button" class="btn shrink-0 px-3" aria-label="Scan barcode" onclick={() => (scanning = true)}><Icon name="scan" /></button>
+      </span>
+    </label>
   </div>
   <p class="muted">Nutrition per <strong>100 g</strong></p>
   <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -47,6 +59,21 @@
     <label class="label">Serving size (g)<input class="field" type="number" min="0" step="any" inputmode="decimal" bind:value={f.servingGrams} /></label>
     <label class="label">Serving label<input class="field" bind:value={f.servingLabel} placeholder="1 slice" /></label>
   </div>
-  <label class="flex items-center gap-2"><input class="size-5 accent-emerald-600" type="checkbox" bind:checked={save} /> Save to my products</label>
-  <button class="btn btn-primary">{submitLabel}</button>
+  {#if !initial}
+    <label class="flex items-center gap-2"><input class="size-5 accent-emerald-600" type="checkbox" bind:checked={save} /> Save to my products</label>
+  {/if}
+  <div class="grid grid-flow-col auto-cols-fr gap-2">
+    {#if oncancel}<button type="button" class="btn" onclick={oncancel}>Cancel</button>{/if}
+    <button class="btn btn-primary">{submitLabel}</button>
+  </div>
 </form>
+
+{#if scanning}
+  <Scanner
+    onscan={(code) => {
+      f.barcode = code;
+      scanning = false;
+    }}
+    onclose={() => (scanning = false)}
+  />
+{/if}

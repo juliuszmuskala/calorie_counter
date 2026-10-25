@@ -1,7 +1,7 @@
 <script>
   import ProductIcon from './ProductIcon.svelte';
   // Nutrition facts for a saved product; shown inside the Settings dialog.
-  let { product: p, onback, onedit = null } = $props();
+  let { product: p, onback, onedit = null, oneditproduct = null } = $props();
 
   const rows = [
     ['Calories', 'kcal', 'kcal'],
@@ -58,5 +58,6 @@
   <div class="grid grid-flow-col auto-cols-fr gap-2">
     <button class="btn" onclick={onback}>Back</button>
     {#if onedit}<button class="btn btn-primary" onclick={onedit}>Edit recipe</button>{/if}
+    {#if oneditproduct}<button class="btn btn-primary" onclick={oneditproduct}>Edit product</button>{/if}
   </div>
 </div>
