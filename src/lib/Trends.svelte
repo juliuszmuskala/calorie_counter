@@ -175,10 +175,10 @@
 
   <section class="grid gap-2">
     <h3 class="font-semibold">Weight</h3>
-    <form class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2" onsubmit={saveWeight}>
-      <label class="label">Date<input class="field min-w-0 px-2" type="date" max={today} required bind:value={wDate} /></label>
+    <form class="grid gap-2" onsubmit={saveWeight}>
+      <label class="label">Date<input class="field" type="date" max={today} required bind:value={wDate} /></label>
       <label class="label">Weight kg<input class="field" type="text" inputmode="decimal" required placeholder="e.g. 82.4" bind:value={wValue} /></label>
-      <button class="btn btn-primary col-span-2">Save weight</button>
+      <button class="btn btn-primary">Save weight</button>
     </form>
     {#if weightByDate.has(wDate)}
       <button class="muted justify-self-start underline" onclick={() => removeWeight(wDate)}>Delete the weight for {longDate(wDate)}</button>
