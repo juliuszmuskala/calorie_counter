@@ -5,6 +5,7 @@
   import { backup, startAutoBackup, reminderDue, daysSinceBackup, resumeBackup, snoozeReminder } from './lib/backup.svelte.js';
   import AddFood from './lib/AddFood.svelte';
   import Settings from './lib/Settings.svelte';
+  import Trends from './lib/Trends.svelte';
   import DatePicker from './lib/DatePicker.svelte';
   import EntryDetails from './lib/EntryDetails.svelte';
   import IncomingTransfer from './lib/IncomingTransfer.svelte';
@@ -21,6 +22,7 @@
   let today = $state(todayStr());
   let adding = $state(null); // meal name while the add dialog is open
   let settings = $state(false);
+  let trends = $state(false);
   let viewing = $state(null); // id of the logged entry shown in the details dialog
   let picking = $state(false);
   let incoming = $state(null); // data arriving from a scanned QR code
@@ -139,7 +141,10 @@
 <main class="mx-auto grid max-w-2xl gap-3 px-4 py-4 pb-16">
   <header class="flex items-center justify-between">
     <h1 class="font-mono text-xl font-bold [word-spacing:-0.35em]">sudo <span class="text-emerald-600 dark:text-emerald-400">upgrade</span></h1>
-    <button class="btn-icon" onclick={() => (settings = true)} aria-label="Settings"><Icon name="settings" class="size-[1.3rem]" /></button>
+    <span class="flex">
+      <button class="btn-icon" onclick={() => (trends = true)} aria-label="Trends"><Icon name="chart" class="size-[1.3rem]" /></button>
+      <button class="btn-icon" onclick={() => (settings = true)} aria-label="Settings"><Icon name="settings" class="size-[1.3rem]" /></button>
+    </span>
   </header>
 
   {#if ui.saveError}
@@ -332,3 +337,4 @@
 {#if picking}<DatePicker {date} {today} onpick={(d) => { date = d; picking = false; }} onclose={() => (picking = false)} />{/if}
 {#if viewing}<EntryDetails id={viewing} onclose={() => (viewing = null)} />{/if}
 {#if settings}<Settings onclose={() => (settings = false)} />{/if}
+{#if trends}<Trends onclose={() => (trends = false)} />{/if}
