@@ -1,5 +1,4 @@
 <script>
-  import Icon from './Icon.svelte';
   import { addEntry, saveProduct, findSaved, MEALS } from './store.svelte.js';
   import Modal from './Modal.svelte';
   import ProductPicker from './ProductPicker.svelte';
@@ -40,7 +39,7 @@
   const title = $derived(selected ? 'How much?' : mode === 'recipe' ? 'New recipe' : 'Add food');
 </script>
 
-<Modal {title} {onclose} confirmClose={mode === 'recipe' && !selected ? 'Discard this recipe?' : null}>
+<Modal {title} {onclose} fill={!selected && mode !== 'recipe'} confirmClose={mode === 'recipe' && !selected ? 'Discard this recipe?' : null}>
   {#if selected}
     <div class="grid gap-3">
       <div class="grid gap-0.5 break-words">
@@ -80,8 +79,7 @@
   {/if}
 
   <!-- stays mounted so search results survive going Back from the amount step -->
-  <div class="grid gap-3" class:hidden={selected || mode === 'recipe'}>
-    <button class="btn btn-dashed" onclick={() => (mode = 'recipe')}><Icon name="recipe" /> Create a recipe from ingredients</button>
-    <ProductPicker onpick={pick} />
+  <div class={selected || mode === 'recipe' ? 'hidden' : 'flex min-h-0 flex-col'}>
+    <ProductPicker onpick={pick} onrecipe={() => (mode = 'recipe')} />
   </div>
 </Modal>

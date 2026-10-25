@@ -1,28 +1,7 @@
 // Open Food Facts: free, no API key, CORS-enabled.
-// USDA FoodData Central: DEMO_KEY works without signing up but is rate limited (30 req/hour, 50/day per IP).
+// CIQUAL (ANSES, France, Etalab 2.0): ~3,300 generic foods bundled as ciqual.json, searched locally. Built by scripts/build-ciqual.mjs.
 const BASE = 'https://world.openfoodfacts.org';
 const FIELDS = 'code,product_name,product_name_en,generic_name,brands,nutriments,serving_quantity,serving_size';
-const USDA_BASE = 'https://api.nal.usda.gov/fdc/v1';
-const DEMO_KEY = 'DEMO_KEY';
-const KEY_STORAGE = 'usda-api-key'; // kept out of the main data blob so backups and QR exports never include it
-
-export function getUsdaKey() {
-  try {
-    return localStorage.getItem(KEY_STORAGE) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-export function setUsdaKey(key) {
-  try {
-    key = key.trim();
-    if (key) localStorage.setItem(KEY_STORAGE, key);
-    else localStorage.removeItem(KEY_STORAGE);
-  } catch {
-    // storage unavailable; falls back to the demo key
-  }
-}
 const TIMEOUT_MS = 15000;
 
 const num = (v) => {
@@ -96,54 +75,27 @@ async function searchOff(query, signal) {
   return (data?.products ?? []).map(normalize).filter(Boolean);
 }
 
-const USDA_NUTRIENTS = { kcal: 1008, protein: 1003, fat: 1004, carbs: 1005, fiber: 1079, sodium: 1093 }; // sodium in mg
-const titleCase = (s) => s.toLowerCase().replace(/(^|[\s(/-])([a-z])/g, (_, a, b) => a + b.toUpperCase());
+const fold = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-function normalizeUsda(f) {
-  const name = (f?.description ?? '').trim();
-  if (!name) return null;
-  const byId = new Map((f.foodNutrients ?? []).map((x) => [x.nutrientId, x.value]));
-  const get = (k) => byId.get(USDA_NUTRIENTS[k]);
-  let kcal = get('kcal');
-  if (kcal == null) kcal = byId.get(2047) ?? byId.get(2048); // Atwater energy (Foundation foods)
-  if (kcal == null) return null;
-  const branded = f.dataType === 'Branded';
-  const unit = (f.servingSizeUnit ?? '').toLowerCase();
-  const serving = branded && (unit === 'g' || unit === 'grm') ? num(f.servingSize) : 0;
-  return {
-    name: branded ? name : titleCase(name),
-    brand: (f.brandName || f.brandOwner || '').trim(),
-    barcode: f.gtinUpc ?? '',
-    kcal: round1(num(kcal)),
-    protein: round1(num(get('protein'))),
-    carbs: round1(num(get('carbs'))),
-    fat: round1(num(get('fat'))),
-    fiber: round1(num(get('fiber'))),
-    salt: round2((num(get('sodium')) / 1000) * 2.5), // mg sodium -> g salt
-    servingGrams: serving > 0 ? serving : null,
-    servingLabel: serving > 0 ? (f.householdServingFullText || `${serving} g`) : '',
-    source: 'api',
-  };
+let ciqual; // loaded on first search so the data stays out of the main bundle
+async function searchCiqual(query) {
+  ciqual ??= import('./ciqual.json').then((m) =>
+    m.default.map(([, en, fr, kcal, protein, carbs, fat, fiber, salt]) => ({
+      haystack: fold(`${en} ${fr}`),
+      product: { name: en, brand: 'Generic (CIQUAL)', barcode: '', kcal, protein, carbs, fat, fiber, salt, servingGrams: null, servingLabel: '', source: 'api' },
+    })),
+  );
+  const words = fold(query).split(/[^a-z0-9]+/).filter(Boolean);
+  if (!words.length) return [];
+  return (await ciqual)
+    .filter((f) => words.every((w) => f.haystack.includes(w)))
+    .sort((a, b) => a.product.name.length - b.product.name.length) // shorter names are the plainer foods
+    .slice(0, 25)
+    .map((f) => f.product);
 }
 
-async function searchUsda(query, signal) {
-  const params = new URLSearchParams({
-    api_key: getUsdaKey() || DEMO_KEY,
-    query: query.trim(),
-    pageSize: '25',
-    dataType: 'Foundation,SR Legacy,Branded',
-  });
-  const data = await getJson(`${USDA_BASE}/foods/search?${params}`, signal);
-  return (data?.foods ?? []).map(normalizeUsda).filter(Boolean);
-}
+// Generic foods: bundled CIQUAL data, searched locally and instantly.
+export const searchGeneric = (q) => searchCiqual(q);
 
-// Searches both databases; one being down or rate limited doesn't hide results from the other.
-async function searchByName(query, signal) {
-  const [off, usda] = await Promise.allSettled([searchOff(query, signal), searchUsda(query, signal)]);
-  if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-  if (off.status === 'rejected' && usda.status === 'rejected') throw off.reason;
-  // USDA's curated generic foods first, then Open Food Facts packaged products
-  return [...(usda.value ?? []), ...(off.value ?? [])];
-}
-
-export const searchProducts = (q, signal) => (isBarcode(q) ? lookupBarcode(q, signal) : searchByName(q, signal));
+// Packaged products: Open Food Facts over the network (barcode lookup or name search).
+export const searchOnline = (q, signal) => (isBarcode(q) ? lookupBarcode(q, signal) : searchOff(q, signal));

@@ -1,7 +1,8 @@
 <script>
   import Icon from './Icon.svelte';
   // Native <dialog>: gives us focus trapping, inert background and Escape handling.
-  let { title, onclose, confirmClose = null, children } = $props();
+  // fill: the body doesn't scroll; the content manages its own scrolling (e.g. a fixed toolbar above a scrolling list)
+  let { title, onclose, confirmClose = null, fill = false, children } = $props();
 
   let el;
   let pressedOnBackdrop = false;
@@ -28,13 +29,14 @@
   onclose={() => onclose()}
   onmousedown={(e) => (pressedOnBackdrop = e.target === el)}
   onclick={(e) => e.target === el && pressedOnBackdrop && tryClose()}
-  class="m-auto max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl bg-white p-0 text-stone-900 shadow-xl backdrop:bg-black/50 dark:bg-stone-900 dark:text-stone-100"
+  class="mx-auto mt-[6dvh] mb-auto max-h-[88dvh] w-[calc(100%-1.5rem)] max-w-lg flex-col overflow-hidden open:flex rounded-2xl bg-white p-0 text-stone-900 shadow-xl backdrop:bg-black/50 dark:bg-stone-900 dark:text-stone-100"
 >
-  <div class="grid content-start gap-3 p-5">
-    <header class="flex items-center justify-between gap-2">
-      <h2 class="min-w-0 text-lg font-semibold break-words">{title}</h2>
-      <button class="btn-icon" onclick={tryClose} aria-label="Close"><Icon name="x" /></button>
-    </header>
+  <header class="flex shrink-0 items-center justify-between gap-2 px-5 pt-5 pb-3">
+    <h2 class="min-w-0 text-lg font-semibold break-words">{title}</h2>
+    <button class="btn-icon" onclick={tryClose} aria-label="Close"><Icon name="x" /></button>
+  </header>
+  <!-- only this part scrolls, so the header stays put -->
+  <div class="min-h-0 px-5 pb-5 {fill ? 'flex flex-col' : 'grid content-start gap-3 overflow-y-auto overscroll-contain'}">
     {@render children()}
   </div>
 </dialog>

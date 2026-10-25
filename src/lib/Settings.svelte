@@ -8,7 +8,6 @@
   import ProductDetails from './ProductDetails.svelte';
   import ProductIcon from './ProductIcon.svelte';
   import QrExport from './QrExport.svelte';
-  import { getUsdaKey, setUsdaKey } from './api.js';
 
   let { onclose } = $props();
   let mode = $state('merge');
@@ -16,7 +15,6 @@
   let fileInput = $state();
   let editing = $state(null); // recipe being edited
   let showQr = $state(false);
-  let usdaKey = $state(getUsdaKey());
   let viewingId = $state(null); // product whose nutrition is shown
   const viewing = $derived(db.products.find((p) => p.id === viewingId));
 
@@ -180,14 +178,6 @@
           <button class="btn" disabled={!itemValid}>{item.id ? 'Save changes' : 'Add'}</button>
         </div>
       </form>
-    </section>
-
-    <section class="grid gap-2">
-      <h3 class="font-semibold">Food search</h3>
-      <label class="label">USDA FoodData Central API key
-        <input class="field" type="text" autocomplete="off" spellcheck="false" placeholder="Optional (shared demo key is used)" bind:value={usdaKey} onchange={() => setUsdaKey(usdaKey)} />
-      </label>
-      <p class="muted">Without a key the shared demo key is used, which allows only a few searches per hour. Get a free key at <a class="underline" href="https://fdc.nal.usda.gov/api-key-signup" target="_blank" rel="noopener">fdc.nal.usda.gov</a>. It stays in this browser and isn't included in backups.</p>
     </section>
 
     <section class="grid gap-2">
