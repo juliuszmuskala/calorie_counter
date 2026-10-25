@@ -16,6 +16,7 @@
   let msg = $state('');
   let fileInput = $state();
   let editing = $state(null); // recipe being edited
+  let creating = $state(false); // building a new recipe, saved without logging it
   let editingProduct = $state(null); // non-recipe product being edited
   let showQr = $state(false);
   let viewingId = $state(null); // product whose nutrition is shown
@@ -87,8 +88,16 @@
   }
 </script>
 
-<Modal title={editing ? 'Edit recipe' : editingProduct ? 'Edit product' : viewing ? 'Product' : showQr ? 'Transfer via QR code' : 'Settings'} {onclose} confirmClose={editing ? 'Discard changes to this recipe?' : null}>
-  {#if editing}
+<Modal title={creating ? 'New recipe' : editing ? 'Edit recipe' : editingProduct ? 'Edit product' : viewing ? 'Product' : showQr ? 'Transfer via QR code' : 'Settings'} {onclose} confirmClose={creating || editing ? 'Discard changes to this recipe?' : null}>
+  {#if creating}
+    <RecipeBuilder
+      onsave={(p) => {
+        saveProduct(p);
+        creating = false;
+      }}
+      oncancel={() => (creating = false)}
+    />
+  {:else if editing}
     <RecipeBuilder
       initial={editing}
       submitLabel="Save changes"
@@ -251,6 +260,7 @@
           <li class="muted">Nothing saved yet.</li>
         {/each}
       </ul>
+      <button class="btn btn-dashed" onclick={() => (creating = true)}><Icon name="recipe" /> New recipe</button>
     </section>
 
     <button class="btn btn-danger" onclick={wipe}>Delete all data</button>
