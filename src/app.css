@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
+  --font-sans: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, monospace;
   --animate-pop: pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
   --animate-comeback: pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1), glow 1.6s ease-out 1;
   @keyframes pop {

@@ -136,7 +136,7 @@
 
 <main class="mx-auto grid max-w-2xl gap-3 px-4 py-4 pb-16">
   <header class="flex items-center justify-between">
-    <h1 class="text-xl font-bold">sudo upgrade</h1>
+    <h1 class="font-mono text-xl font-bold [word-spacing:-0.35em]">sudo <span class="text-emerald-600 dark:text-emerald-400">upgrade</span></h1>
     <button class="btn-icon" onclick={() => (settings = true)} aria-label="Settings"><Icon name="settings" class="size-[1.3rem]" /></button>
   </header>
 
