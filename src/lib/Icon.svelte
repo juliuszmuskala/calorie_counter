@@ -2,7 +2,7 @@
   // Thin wrapper over Lucide so the rest of the app refers to icons by a short name, sized in em to follow the text.
   import {
     Apple, Carrot, Check, Flame, Snowflake, ChefHat, ChevronLeft, ChevronRight, Cherry, Coffee, Cookie, Drumstick, Droplet, Egg, Fish, Leaf, Milk, Nut,
-    Pencil, Settings, Trash2, Utensils, Wheat, X,
+    Pencil, ScanBarcode, Settings, Trash2, Utensils, Wheat, X,
   } from '@lucide/svelte';
 
   let { name, class: cls = '' } = $props();
@@ -18,6 +18,7 @@
     pencil: Pencil,
     settings: Settings,
     recipe: ChefHat,
+    scan: ScanBarcode,
     // food categories (see foodIcon.js)
     apple: Apple,
     milk: Milk,

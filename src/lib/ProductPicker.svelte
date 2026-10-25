@@ -1,10 +1,11 @@
 <script>
-  import { onDestroy } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import { db, saveProduct } from './store.svelte.js';
   import { searchGeneric, searchOnline, isBarcode } from './api.js';
   import ProductForm from './ProductForm.svelte';
   import ProductIcon from './ProductIcon.svelte';
   import Icon from './Icon.svelte';
+  import Scanner from './Scanner.svelte';
 
   // onpick(product): called with an API result, a saved product, or a newly entered custom product.
   let { onpick, onrecipe = null, includeRecipes = true } = $props();
@@ -36,9 +37,18 @@
     return () => (stale = true);
   });
 
-  async function searchWeb(e) {
-    e.preventDefault();
-    const q = query.trim();
+  let scanning = $state(false);
+
+  async function onscan(code) {
+    scanning = false;
+    query = code;
+    await tick(); // let the query effect reset the results first, or it would cancel this lookup
+    searchWeb(null, code);
+  }
+
+  async function searchWeb(e, text = query) {
+    e?.preventDefault();
+    const q = text.trim();
     if (!q) return;
     ctrl?.abort();
     const mine = (ctrl = new AbortController());
@@ -108,6 +118,7 @@
       {#if tab === 'search'}
         <form class="flex gap-2" onsubmit={searchWeb}>
           <input class="field" type="search" bind:value={query} placeholder="Generic food, product or barcode" aria-label="Generic food, product or barcode" />
+          <button type="button" class="btn shrink-0 px-3" aria-label="Scan barcode" onclick={() => (scanning = true)}><Icon name="scan" /></button>
           <button class="btn btn-primary shrink-0" disabled={status === 'loading' || !query.trim()}>{isBarcode(query) ? 'Look up' : 'Look online'}</button>
         </form>
       {:else if tab === 'saved'}
@@ -175,3 +186,7 @@
   {/if}
   </div>
 </div>
+
+{#if scanning}
+  <Scanner {onscan} onclose={() => (scanning = false)} />
+{/if}

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@lucide/svelte": "^1.61.0",
+    "barcode-detector": "^3.2.3",
     "canvas-confetti": "^1.9.4",
     "uqr": "^0.1.3"
   }
