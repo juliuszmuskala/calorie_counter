@@ -43,10 +43,11 @@ const defaultSupplements = () => [
 
 const defaults = () => ({
   version: 2,
-  goals: { kcal: 2100, kcalTolerance: 100, protein: 120, fiber: 40, comboActivities: true, comboGraceDays: 1, comboGraceCooldown: 7 },
+  goals: { kcal: 2100, kcalTolerance: 100, protein: 120, fiber: 40, comboActivities: true, comboGraceDays: 1, comboGraceCooldown: 7, targetWeight: 0 },
   supplements: defaultSupplements(),
   supplementLog: {}, // { 'YYYY-MM-DD': [supplementId, ...] }
   products: [], // saved/custom products and recipes, nutrition per 100 g
+  weights: [], // body weight in kg, one per day: { date, kg }, sorted by date
   entries: [], // log entries; carry a product snapshot so they stay valid if the library changes
 });
 
@@ -73,6 +74,14 @@ function cleanProduct(p) {
   };
   if (out.source === 'recipe' && !Array.isArray(out.recipe?.ingredients)) out.source = 'custom';
   return out;
+}
+
+function cleanWeights(list) {
+  const byDay = new Map();
+  for (const w of Array.isArray(list) ? list : []) {
+    if (w && isDateStr(w.date) && isNum(w.kg) && w.kg > 0 && w.kg < 1000) byDay.set(w.date, { date: w.date, kg: w.kg });
+  }
+  return [...byDay.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
 function cleanEntry(e) {
@@ -145,11 +154,13 @@ function sanitize(d) {
           comboActivities: g.comboActivities !== false,
           comboGraceDays: 'comboGraceDays' in g ? Math.floor(nonNeg(g.comboGraceDays)) : base.goals.comboGraceDays,
           comboGraceCooldown: 'comboGraceCooldown' in g ? Math.floor(nonNeg(g.comboGraceCooldown)) : base.goals.comboGraceCooldown,
+          targetWeight: nonNeg(g.targetWeight),
         }
       : base.goals,
     supplements: Array.isArray(d?.supplements) ? withDefaultActivities(d, clean(d.supplements, cleanSupplement)) : base.supplements,
     supplementLog: log,
     products: clean(d?.products, cleanProduct),
+    weights: cleanWeights(d?.weights),
     entries: clean(d?.entries, cleanEntry),
   };
 }
@@ -172,6 +183,7 @@ function replaceAll(next) {
   db.supplements = next.supplements;
   db.supplementLog = next.supplementLog;
   db.products = next.products;
+  db.weights = next.weights;
   db.entries = next.entries;
 }
 
@@ -251,6 +263,17 @@ export const removeProduct = (id) => {
   if (i >= 0) db.products.splice(i, 1);
 };
 
+// ---- body weight
+
+// Sets the weight for a day (one per day, replaces an earlier one).
+export function setWeight(date, kg) {
+  db.weights = cleanWeights([...db.weights.filter((w) => w.date !== date), { date, kg }]);
+}
+
+export const removeWeight = (date) => {
+  db.weights = db.weights.filter((w) => w.date !== date);
+};
+
 export const scale = (e, key) => ((e[key] ?? 0) * e.grams) / 100;
 
 export function totals(entries) {
@@ -328,6 +351,8 @@ export function applyImport(next, mode) {
   const newE = next.entries.filter((e) => !eIds.has(e.id));
   db.products.push(...newP);
   db.entries.push(...newE);
+  const have = new Set(db.weights.map((w) => w.date));
+  db.weights = cleanWeights([...db.weights, ...next.weights.filter((w) => !have.has(w.date))]);
   db.supplements.push(...next.supplements.filter((s) => !sIds.has(s.id)));
   for (const [day, ids] of Object.entries(next.supplementLog)) {
     db.supplementLog[day] = [...new Set([...(db.supplementLog[day] ?? []), ...ids])];
@@ -345,6 +370,7 @@ export function exportPayload(log = 'all') {
     ...snap,
     entries: snap.entries.filter((e) => inRange(e.date)),
     supplementLog: Object.fromEntries(Object.entries(snap.supplementLog).filter(([d]) => inRange(d))),
+    weights: snap.weights.filter((w) => inRange(w.date)),
   };
 }
 

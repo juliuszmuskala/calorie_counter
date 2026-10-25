@@ -1,7 +1,7 @@
 <script>
   import Modal from './Modal.svelte';
   import Bar from './Bar.svelte';
-  import { db, totals, comboDays, addDays, todayStr, WEEK_ORDER } from './store.svelte.js';
+  import { db, totals, comboDays, addDays, todayStr, setWeight, removeWeight, WEEK_ORDER } from './store.svelte.js';
 
   let { onclose } = $props();
 
@@ -50,6 +50,45 @@
     const x0 = x(i), x1 = x0 + barW, y0 = y(0), y1 = y(k);
     return `M${x0},${y0}V${y1 + r}Q${x0},${y1} ${x0 + r},${y1}H${x1 - r}Q${x1},${y1} ${x1},${y1 + r}V${y0}Z`;
   };
+
+  // ---- weight
+  const target = $derived(db.goals.targetWeight);
+  const weightByDate = $derived(new Map(db.weights.map((w) => [w.date, w.kg])));
+  const fmtKg = (v) => (Math.round(v * 10) / 10).toString();
+  // trend: mean of the weigh-ins in the 7 days up to each one, which smooths out water-weight noise
+  const trendAt = (date) => {
+    const from = addDays(date, -6);
+    const near = db.weights.filter((w) => w.date >= from && w.date <= date);
+    return near.reduce((a, w) => a + w.kg, 0) / near.length;
+  };
+  const wPoints = $derived(
+    days.flatMap((date, i) => (weightByDate.has(date) ? [{ date, i, kg: weightByDate.get(date), trend: trendAt(date) }] : [])),
+  );
+  const wRange = $derived.by(() => {
+    const vals = [...wPoints.flatMap((p) => [p.kg, p.trend]), ...(target > 0 ? [target] : [])];
+    if (!vals.length) return { lo: 0, hi: 1 };
+    const lo = Math.floor((Math.min(...vals) - 0.5) * 2) / 2;
+    const hi = Math.ceil((Math.max(...vals) + 0.5) * 2) / 2;
+    return { lo, hi: hi > lo ? hi : lo + 1 };
+  });
+  const wy = (v) => T + plotH - ((v - wRange.lo) / (wRange.hi - wRange.lo)) * plotH;
+  const wx = (i) => L + i * slot + slot / 2;
+  const wTicks = $derived([wRange.lo, (wRange.lo + wRange.hi) / 2, wRange.hi]);
+  const linePath = (key) => wPoints.map((p, n) => `${n ? 'L' : 'M'}${wx(p.i)},${wy(p[key])}`).join('');
+  const latest = $derived(db.weights.at(-1) ?? null);
+  const change = $derived(wPoints.length > 1 ? wPoints.at(-1).trend - wPoints[0].trend : null);
+
+  let wDate = $state(today);
+  let wValue = $state('');
+  // show what is already logged for the chosen day
+  $effect(() => {
+    wValue = weightByDate.has(wDate) ? String(weightByDate.get(wDate)) : '';
+  });
+  function saveWeight(e) {
+    e.preventDefault();
+    const kg = Number(wValue.replace(',', '.'));
+    if (kg > 0 && kg < 1000) setWeight(wDate, kg);
+  }
 
   // ---- averages over logged days (today is still in progress, so it only counts when it is all there is)
   const logged = $derived.by(() => {
@@ -132,6 +171,63 @@
       {/if}
       {#if markOf(selected) && markOf(selected) !== 'empty' && markOf(selected) !== 'logged'}<span class="muted block">{markLabel[markOf(selected)]}</span>{/if}
     </p>
+  </section>
+
+  <section class="grid gap-2">
+    <h3 class="font-semibold">Weight</h3>
+    <form class="grid grid-cols-[1fr_1fr_auto] items-end gap-2" onsubmit={saveWeight}>
+      <label class="label">Date<input class="field" type="date" max={today} required bind:value={wDate} /></label>
+      <label class="label">Weight kg<input class="field" type="text" inputmode="decimal" required placeholder="e.g. 82.4" bind:value={wValue} /></label>
+      <button class="btn btn-primary">Save</button>
+    </form>
+    {#if weightByDate.has(wDate)}
+      <button class="muted justify-self-start underline" onclick={() => removeWeight(wDate)}>Delete the weight for {longDate(wDate)}</button>
+    {/if}
+
+    {#if latest}
+      <p class="text-sm">
+        <strong>{fmtKg(latest.kg)} kg</strong> <span class="muted">on {shortDate(latest.date)}</span>
+        {#if target > 0}
+          · {#if Math.abs(latest.kg - target) < 0.05}at your target of {fmtKg(target)} kg{:else}{fmtKg(Math.abs(latest.kg - target))} kg {latest.kg > target ? 'above' : 'below'} your target of {fmtKg(target)} kg{/if}
+        {:else}
+          <span class="muted">· set a target weight in Settings</span>
+        {/if}
+        {#if change !== null}<span class="muted block">Trend over this period: {change > 0 ? '+' : ''}{fmtKg(change)} kg</span>{/if}
+      </p>
+    {:else}
+      <p class="muted">No weight logged yet.</p>
+    {/if}
+
+    {#if wPoints.length}
+      <svg viewBox="0 0 {W} {H}" class="w-full" role="img" aria-label="Body weight over the last {range} days">
+        {#each wTicks as t}
+          <line x1={L} x2={W - R} y1={wy(t)} y2={wy(t)} class="stroke-stone-200 dark:stroke-stone-800" stroke-width="1" />
+          <text x={L - 4} y={wy(t) + 3} text-anchor="end" class="fill-stone-500 text-[9px] dark:fill-stone-400">{fmtKg(t)}</text>
+        {/each}
+        {#if target > 0}
+          <line x1={L} x2={W - R} y1={wy(target)} y2={wy(target)} class="stroke-stone-500 dark:stroke-stone-400" stroke-width="1" />
+        {/if}
+        {#if wPoints.length > 1}
+          <path d={linePath('trend')} fill="none" class="stroke-emerald-500 dark:stroke-emerald-400" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+        {/if}
+        {#each wPoints as p (p.date)}
+          <circle cx={wx(p.i)} cy={wy(p.kg)} r="4" class="fill-stone-400 stroke-white stroke-2 dark:fill-stone-500 dark:stroke-stone-900" />
+        {/each}
+        {#each days as date, i (date)}
+          {#if selected === date}<rect x={L + i * slot} y={T} width={slot} height={plotH} class="fill-stone-900/5 dark:fill-white/10" />{/if}
+          <rect x={L + i * slot} y={T} width={slot} height={plotH} fill="transparent" role="button" tabindex="-1" aria-label="{longDate(date)}" onclick={() => ((selected = date), (wDate = date))} />
+        {/each}
+        <text x={L} y={H - 6} class="fill-stone-500 text-[9px] dark:fill-stone-400">{shortDate(days[0])}</text>
+        <text x={W - R} y={H - 6} text-anchor="end" class="fill-stone-500 text-[9px] dark:fill-stone-400">{shortDate(days[range - 1])}</text>
+      </svg>
+      <div class="muted flex flex-wrap gap-x-4 gap-y-1">
+        <span class="flex items-center gap-1.5"><span class="inline-block size-2.5 rounded-full bg-stone-400 dark:bg-stone-500"></span>Weigh-in</span>
+        <span class="flex items-center gap-1.5"><span class="inline-block h-0.5 w-3 bg-emerald-500 dark:bg-emerald-400"></span>7-day trend</span>
+        {#if target > 0}<span class="flex items-center gap-1.5"><span class="inline-block h-px w-3 bg-stone-500 dark:bg-stone-400"></span>Target {fmtKg(target)} kg</span>{/if}
+      </div>
+    {:else if latest}
+      <p class="muted">No weigh-ins in the last {range} days. Pick a longer range to see the chart.</p>
+    {/if}
   </section>
 
   <section class="grid gap-2">

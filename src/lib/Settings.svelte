@@ -122,6 +122,7 @@
         <label class="label">Calorie margin ± kcal<input class="field" type="number" min="0" inputmode="numeric" value={db.goals.kcalTolerance} onchange={(e) => setGoal('kcalTolerance', e)} /></label>
         <label class="label">Protein g<input class="field" type="number" min="0" inputmode="numeric" value={db.goals.protein} onchange={(e) => setGoal('protein', e)} /></label>
         <label class="label">Fiber g<input class="field" type="number" min="0" inputmode="numeric" value={db.goals.fiber} onchange={(e) => setGoal('fiber', e)} /></label>
+        <label class="label">Target weight kg (0 = none)<input class="field" type="number" min="0" step="0.1" inputmode="decimal" value={db.goals.targetWeight} onchange={(e) => setGoal('targetWeight', e)} /></label>
       </div>
 
       <h4 class="mt-1 text-sm font-semibold">Daily combo</h4>
