@@ -175,10 +175,10 @@
 
   <section class="grid gap-2">
     <h3 class="font-semibold">Weight</h3>
-    <form class="grid grid-cols-[1fr_1fr_auto] items-end gap-2" onsubmit={saveWeight}>
-      <label class="label">Date<input class="field" type="date" max={today} required bind:value={wDate} /></label>
+    <form class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2" onsubmit={saveWeight}>
+      <label class="label">Date<input class="field min-w-0 px-2" type="date" max={today} required bind:value={wDate} /></label>
       <label class="label">Weight kg<input class="field" type="text" inputmode="decimal" required placeholder="e.g. 82.4" bind:value={wValue} /></label>
-      <button class="btn btn-primary">Save</button>
+      <button class="btn btn-primary col-span-2">Save weight</button>
     </form>
     {#if weightByDate.has(wDate)}
       <button class="muted justify-self-start underline" onclick={() => removeWeight(wDate)}>Delete the weight for {longDate(wDate)}</button>
@@ -215,7 +215,9 @@
         {/each}
         {#each days as date, i (date)}
           {#if selected === date}<rect x={L + i * slot} y={T} width={slot} height={plotH} class="fill-stone-900/5 dark:fill-white/10" />{/if}
-          <rect x={L + i * slot} y={T} width={slot} height={plotH} fill="transparent" role="button" tabindex="-1" aria-label="{longDate(date)}" onclick={() => ((selected = date), (wDate = date))} />
+          <rect x={L + i * slot} y={T} width={slot} height={plotH} fill="transparent" role="button" tabindex="0" aria-label="{longDate(date)}"
+            onclick={() => ((selected = date), (wDate = date))} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), (selected = date), (wDate = date))}
+          />
         {/each}
         <text x={L} y={H - 6} class="fill-stone-500 text-[9px] dark:fill-stone-400">{shortDate(days[0])}</text>
         <text x={W - R} y={H - 6} text-anchor="end" class="fill-stone-500 text-[9px] dark:fill-stone-400">{shortDate(days[range - 1])}</text>

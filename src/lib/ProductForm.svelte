@@ -6,6 +6,8 @@
   let { submitLabel = 'Continue', onsubmit, initial = null, oncancel = null } = $props();
 
   const blank = { name: '', brand: '', barcode: '', kcal: '', protein: '', carbs: '', fat: '', fiber: '', salt: '', servingGrams: '', servingLabel: '' };
+  // the form is a draft: it starts from `initial` and is not meant to follow later changes to it
+  // svelte-ignore state_referenced_locally
   let f = $state(initial ? { ...blank, ...Object.fromEntries(Object.keys(blank).map((k) => [k, initial[k] ?? ''])) } : { ...blank });
   let save = $state(true);
   let scanning = $state(false);
@@ -37,15 +39,13 @@
 
 <form onsubmit={submit} class="grid gap-3">
   <label class="label">Name *<input class="field" required bind:value={f.name} placeholder="e.g. Grandma's lasagne" /></label>
-  <div class="grid grid-cols-2 gap-2">
-    <label class="label">Brand<input class="field" bind:value={f.brand} /></label>
-    <label class="label">Barcode
-      <span class="flex gap-1.5">
-        <input class="field min-w-0" bind:value={f.barcode} inputmode="numeric" />
-        <button type="button" class="btn shrink-0 px-3" aria-label="Scan barcode" onclick={() => (scanning = true)}><Icon name="scan" /></button>
-      </span>
-    </label>
-  </div>
+  <label class="label">Brand<input class="field" bind:value={f.brand} /></label>
+  <label class="label">Barcode
+    <span class="flex gap-1.5">
+      <input class="field min-w-0" bind:value={f.barcode} inputmode="numeric" />
+      <button type="button" class="btn shrink-0 px-3" aria-label="Scan barcode" onclick={() => (scanning = true)}><Icon name="scan" /></button>
+    </span>
+  </label>
   <p class="muted">Nutrition per <strong>100 g</strong></p>
   <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
     <label class="label">Calories *<input class="field" required type="number" min="0" step="any" inputmode="decimal" bind:value={f.kcal} /></label>
