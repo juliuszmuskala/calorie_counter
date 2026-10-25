@@ -261,8 +261,30 @@ export function totals(entries) {
 
 // ---- backup
 
+const BACKUP_KEY = 'calorie-counter:lastBackup';
+const readTime = () => {
+  try {
+    return Number(localStorage.getItem(BACKUP_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+};
+
+// When data was last saved to a file (manual export or auto-backup), ms since epoch; 0 = never.
+export const backupMeta = $state({ last: readTime() });
+
+export function markBackup() {
+  backupMeta.last = Date.now();
+  try {
+    localStorage.setItem(BACKUP_KEY, String(backupMeta.last));
+  } catch {}
+}
+
+export const backupJson = () => JSON.stringify($state.snapshot(db), null, 2);
+
 export function exportJson() {
-  const blob = new Blob([JSON.stringify($state.snapshot(db), null, 2)], { type: 'application/json' });
+  markBackup();
+  const blob = new Blob([backupJson()], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `calorie-counter-${todayStr()}.json`;

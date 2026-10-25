@@ -1,8 +1,9 @@
 <script>
   import Icon from './Icon.svelte';
   import {
-    db, exportJson, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS, WEEK_ORDER,
+    db, exportJson, backupMeta, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS, WEEK_ORDER,
   } from './store.svelte.js';
+  import { backup, linkBackupFile, unlinkBackupFile, resumeBackup } from './backup.svelte.js';
   import Modal from './Modal.svelte';
   import RecipeBuilder from './RecipeBuilder.svelte';
   import ProductForm from './ProductForm.svelte';
@@ -197,7 +198,21 @@
     <section class="grid gap-2">
       <h3 class="font-semibold">Backup</h3>
       <p class="muted">Data lives only in this browser. Export a JSON file to back it up or move it to another device.</p>
+      <p class="muted">
+        {backupMeta.last ? `Last backup: ${new Date(backupMeta.last).toLocaleString()}.` : 'Not backed up yet.'}
+      </p>
       <button class="btn" onclick={exportJson}>Export JSON</button>
+      {#if backup.supported}
+        {#if backup.fileName}
+          <p class="muted">Automatically saved to <strong>{backup.fileName}</strong> after every change.</p>
+          {#if backup.needsPermission}<button class="btn btn-primary" onclick={resumeBackup}>Allow writing to {backup.fileName}</button>{/if}
+          <button class="btn" onclick={unlinkBackupFile}>Stop auto-backup</button>
+        {:else}
+          <button class="btn" onclick={linkBackupFile}>Auto-backup to a file…</button>
+          <p class="muted">Pick a file (e.g. in a synced folder) and it is rewritten after every change. Your browser may ask for permission again after a restart.</p>
+        {/if}
+        {#if backup.error}<p class="text-red-600 dark:text-red-400" role="alert">{backup.error}</p>{/if}
+      {/if}
       <button class="btn" onclick={() => (showQr = true)}>Transfer via QR code…</button>
       <label class="label">On import
         <select class="field" bind:value={mode}>

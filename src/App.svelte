@@ -1,7 +1,8 @@
 <script>
   import {
-    db, ui, MEALS, todayStr, addDays, removeEntry, scale, totals, startPersisting, isDue, isTaken, toggleSupplement, comboStatus, comboStreak,
+    db, ui, exportJson, MEALS, todayStr, addDays, removeEntry, scale, totals, startPersisting, isDue, isTaken, toggleSupplement, comboStatus, comboStreak,
   } from './lib/store.svelte.js';
+  import { backup, startAutoBackup, reminderDue, daysSinceBackup, resumeBackup, snoozeReminder } from './lib/backup.svelte.js';
   import AddFood from './lib/AddFood.svelte';
   import Settings from './lib/Settings.svelte';
   import DatePicker from './lib/DatePicker.svelte';
@@ -14,6 +15,7 @@
   import Icon from './lib/Icon.svelte';
 
   $effect(startPersisting);
+  $effect(startAutoBackup);
 
   let date = $state(todayStr());
   let today = $state(todayStr());
@@ -144,6 +146,21 @@
     <p class="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200" role="alert">
       {ui.saveError}
     </p>
+  {/if}
+
+  {#if backup.needsPermission}
+    <div class="flex items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+      <span>The browser needs your OK to keep writing {backup.fileName}.</span>
+      <button class="btn shrink-0 text-sm" onclick={resumeBackup}>Allow</button>
+    </div>
+  {:else if reminderDue()}
+    <div class="flex items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200" role="status">
+      <span>{daysSinceBackup() === null ? 'Your data has never been backed up.' : `Last backup was ${daysSinceBackup()} days ago.`}</span>
+      <span class="flex shrink-0 gap-1.5">
+        <button class="btn text-sm" onclick={() => (exportJson(), snoozeReminder())}>Export</button>
+        <button class="btn text-sm" onclick={snoozeReminder}>Later</button>
+      </span>
+    </div>
   {/if}
 
   <div class="grid justify-items-center">

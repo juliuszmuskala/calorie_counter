@@ -1,7 +1,7 @@
 // Offline support. The app shell is cached on first load; the Open Food Facts API is never cached.
 // The build fills in the file list and a build id below (see vite.config.js), so each deploy gets a fresh cache.
-const CACHE = 'calorie-counter-mvnr3bdq';
-const PRECACHE = ["./","manifest.webmanifest","icon-192.png","icon.svg","assets/index-CeSbLXkr.js","assets/ciqual-DNBC-paR.js","assets/confetti.module-D2UmBLOm.js","assets/ponyfill-F58X_nWR.js","assets/zxing_reader-BwrG5lKu.js","assets/index-D88T4NU0.css","assets/zxing_reader-BCjuyud6.wasm","index.html"];
+const CACHE = 'calorie-counter-mvnr7fbx';
+const PRECACHE = ["./","manifest.webmanifest","icon-192.png","icon.svg","assets/index-D98QdXfy.js","assets/ciqual-DNBC-paR.js","assets/confetti.module-D2UmBLOm.js","assets/ponyfill-F58X_nWR.js","assets/zxing_reader-BwrG5lKu.js","assets/index-DMpoTo2a.css","assets/zxing_reader-BCjuyud6.wasm","index.html"];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)));
