@@ -32,7 +32,7 @@
       key: uid(),
       name: p.name,
       brand: p.brand ?? '',
-      grams: p.servingGrams || 100,
+      grams: p.servingGrams || 100, // a recipe starts at one serving
       kcal: p.kcal,
       protein: p.protein,
       carbs: p.carbs,
@@ -82,7 +82,7 @@
       <h3 class="font-semibold">Add ingredient</h3>
       <button class="btn" onclick={() => (picking = false)}>Back to recipe</button>
     </div>
-    <ProductPicker onpick={addIngredient} includeRecipes={false} />
+    <ProductPicker onpick={addIngredient} excludeId={initial?.id} />
   </div>
 {:else}
   <form onsubmit={submit} class="grid gap-3">

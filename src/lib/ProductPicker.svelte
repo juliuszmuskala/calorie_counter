@@ -8,7 +8,8 @@
   import Scanner from './Scanner.svelte';
 
   // onpick(product): called with an API result, a saved product, or a newly entered custom product.
-  let { onpick, onrecipe = null, includeRecipes = true } = $props();
+  // excludeId hides one saved product (a recipe being edited can't be its own ingredient).
+  let { onpick, onrecipe = null, includeRecipes = true, excludeId = null } = $props();
 
   let tab = $state('search');
   let query = $state('');
@@ -71,7 +72,7 @@
   }
 
   let filter = $state('');
-  const pool = $derived(db.products.filter((p) => includeRecipes || p.source !== 'recipe'));
+  const pool = $derived(db.products.filter((p) => (includeRecipes || p.source !== 'recipe') && p.id !== excludeId));
   const filteredSaved = $derived(
     pool.filter((p) => !filter.trim() || `${p.name} ${p.brand} ${p.barcode}`.toLowerCase().includes(filter.trim().toLowerCase())),
   );
