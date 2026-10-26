@@ -134,8 +134,10 @@
     <p class="muted">Leave final weight empty to use the total of the ingredients. Set it if cooking changes the weight.</p>
 
     {#if ingredients.length && totalGrams > 0}
-      <p class="font-semibold">
-        Total {Math.round(totalKcal)} kcal · {Math.round(totalKcal / nServ)} per serving · {Math.round((totalKcal / totalGrams) * 100)} kcal/100 g
+      <p class="flex flex-wrap gap-x-3 font-semibold whitespace-nowrap">
+        <span>Total {Math.round(totalKcal)} kcal</span>
+        <span>{Math.round(totalKcal / nServ)} kcal per serving</span>
+        <span>{Math.round((totalKcal / totalGrams) * 100)} kcal/100 g</span>
       </p>
     {/if}
 
