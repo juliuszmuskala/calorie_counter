@@ -14,13 +14,13 @@
 
   function pick(p) {
     selected = p;
-    grams = p.servingGrams || 100;
+    grams = p.whole ? 1 : p.servingGrams || 100;
   }
 
   function add() {
     // products found online are kept in the library automatically
     if (selected.source === 'api' && !findSaved(selected)) saveProduct(selected);
-    addEntry({ date, meal, product: selected, grams: Number(grams) });
+    addEntry({ date, meal, product: selected, grams: Number(grams) * (selected.whole ? 100 : 1) });
     onclose();
   }
 
@@ -29,7 +29,7 @@
     pick(save ? saveProduct(p) : p); // one-time recipes are only logged, never stored in the library
   }
 
-  const factor = $derived((Number(grams) || 0) / 100);
+  const factor = $derived(selected?.whole ? Number(grams) || 0 : (Number(grams) || 0) / 100);
   // a serving label that just repeats the weight ("40 g") adds nothing
   const servingNote = $derived.by(() => {
     const label = selected?.servingLabel?.trim();
@@ -46,22 +46,26 @@
         <strong class="text-lg">{selected.name}</strong>
         {#if selected.brand}<span class="muted">{selected.brand}</span>{/if}
         <span class="muted">
-          per 100 g: {selected.kcal} kcal · P {selected.protein} · C {selected.carbs} · F {selected.fat} · Fiber {selected.fiber ?? 0} · Salt {selected.salt ?? 0}
+          {selected.whole ? 'per item' : 'per 100 g'}: {selected.kcal} kcal · P {selected.protein} · C {selected.carbs} · F {selected.fat} · Fiber {selected.fiber ?? 0} · Salt {selected.salt ?? 0}
         </span>
       </div>
       <label class="label">Meal
         <select class="field" bind:value={meal}>{#each MEALS as m}<option>{m}</option>{/each}</select>
       </label>
-      <label class="label">Amount (g)
+      <label class="label">{selected.whole ? 'Quantity' : 'Amount (g)'}
         <input class="field" type="number" min="0" step="any" inputmode="decimal" bind:value={grams} />
       </label>
       <div class="flex flex-wrap gap-2">
+        {#if selected.whole}
+          <button class="btn text-sm" onclick={() => (grams = 1)}>1 item</button>
+        {:else}
         {#if selected.servingGrams}
           <button class="btn text-sm" onclick={() => (grams = selected.servingGrams)}>
             1 serving ({selected.servingGrams} g{servingNote})
           </button>
         {/if}
         <button class="btn text-sm" onclick={() => (grams = 100)}>100 g</button>
+        {/if}
       </div>
       <p class="text-3xl font-bold" aria-live="polite">
         {Math.round(selected.kcal * factor)} kcal

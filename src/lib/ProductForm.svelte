@@ -6,6 +6,8 @@
   let { submitLabel = 'Continue', onsubmit, initial = null, oncancel = null } = $props();
 
   const blank = { name: '', brand: '', barcode: '', kcal: '', protein: '', carbs: '', fat: '', fiber: '', salt: '', servingGrams: '', servingLabel: '' };
+  // svelte-ignore state_referenced_locally
+  let whole = $state(initial?.whole ?? false);
   // the form is a draft: it starts from `initial` and is not meant to follow later changes to it
   // svelte-ignore state_referenced_locally
   let f = $state(initial ? { ...blank, ...Object.fromEntries(Object.keys(blank).map((k) => [k, initial[k] ?? ''])) } : { ...blank });
@@ -28,8 +30,10 @@
         fat: n(f.fat),
         fiber: n(f.fiber),
         salt: n(f.salt),
-        servingGrams: n(f.servingGrams) > 0 ? n(f.servingGrams) : null,
-        servingLabel: f.servingLabel.trim(),
+        // a whole item is stored as 100 g so the per-100 g values are the values for one item
+        servingGrams: whole ? 100 : n(f.servingGrams) > 0 ? n(f.servingGrams) : null,
+        servingLabel: whole ? '' : f.servingLabel.trim(),
+        ...(whole && { whole: true }),
         source: initial?.source ?? 'custom',
       },
       save,
@@ -46,7 +50,8 @@
       <button type="button" class="btn shrink-0 px-3" aria-label="Scan barcode" onclick={() => (scanning = true)}><Icon name="scan" /></button>
     </span>
   </label>
-  <p class="muted">Nutrition per <strong>100 g</strong></p>
+  <label class="flex items-center gap-2"><input class="size-5 accent-emerald-600" type="checkbox" bind:checked={whole} /> Whole item, no weight (e.g. restaurant meal)</label>
+  <p class="muted">Nutrition per <strong>{whole ? 'item' : '100 g'}</strong></p>
   <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
     <label class="label">Calories *<input class="field" required type="number" min="0" step="any" inputmode="decimal" bind:value={f.kcal} /></label>
     <label class="label">Protein g<input class="field" type="number" min="0" step="any" inputmode="decimal" bind:value={f.protein} /></label>
@@ -55,7 +60,7 @@
     <label class="label">Fiber g<input class="field" type="number" min="0" step="any" inputmode="decimal" bind:value={f.fiber} /></label>
     <label class="label">Salt g<input class="field" type="number" min="0" step="any" inputmode="decimal" bind:value={f.salt} /></label>
   </div>
-  <div class="grid grid-cols-2 gap-2">
+  <div class="grid grid-cols-2 gap-2" class:hidden={whole}>
     <label class="label">Serving size (g)<input class="field" type="number" min="0" step="any" inputmode="decimal" bind:value={f.servingGrams} /></label>
     <label class="label">Serving label<input class="field" bind:value={f.servingLabel} placeholder="1 slice" /></label>
   </div>

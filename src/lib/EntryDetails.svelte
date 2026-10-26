@@ -18,8 +18,8 @@
 
   function setGrams(ev) {
     const v = ev.currentTarget.valueAsNumber;
-    if (v > 0) e.grams = v;
-    else ev.currentTarget.value = e.grams;
+    if (v > 0) e.grams = e.whole ? v * 100 : v;
+    else ev.currentTarget.value = e.whole ? e.grams / 100 : e.grams;
   }
 </script>
 
@@ -31,8 +31,8 @@
     </div>
 
     <div class="grid grid-cols-2 gap-2">
-      <label class="label">Amount (g)
-        <input class="field" type="number" min="0" step="any" inputmode="decimal" value={e.grams} onchange={setGrams} />
+      <label class="label">{e.whole ? 'Quantity' : 'Amount (g)'}
+        <input class="field" type="number" min="0" step="any" inputmode="decimal" value={e.whole ? e.grams / 100 : e.grams} onchange={setGrams} />
       </label>
       <label class="label">Meal
         <select class="field" bind:value={e.meal}>{#each MEALS as m}<option>{m}</option>{/each}</select>
@@ -41,7 +41,7 @@
 
     <table class="w-full text-left">
       <thead class="muted">
-        <tr><th class="py-1 font-normal"></th><th class="py-1 text-right font-normal">This portion</th><th class="py-1 text-right font-normal">Per 100 g</th></tr>
+        <tr><th class="py-1 font-normal"></th><th class="py-1 text-right font-normal">This portion</th><th class="py-1 text-right font-normal">{e.whole ? 'Per item' : 'Per 100 g'}</th></tr>
       </thead>
       <tbody class="tabular-nums">
         {#each rows as [label, key, unit]}

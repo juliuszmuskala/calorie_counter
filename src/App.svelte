@@ -134,7 +134,7 @@
 
   function setAmount(e, ev) {
     const v = ev.currentTarget.valueAsNumber;
-    if (v > 0) e.grams = v;
+    if (v > 0) e.grams = e.whole ? v * 100 : v;
   }
 </script>
 
@@ -316,11 +316,11 @@
                 min="0"
                 step="any"
                 inputmode="decimal"
-                value={e.grams}
+                value={e.whole ? e.grams / 100 : e.grams}
                 onchange={(ev) => setAmount(e, ev)}
-                aria-label="Grams of {e.name}"
+                aria-label="{e.whole ? 'Quantity' : 'Grams'} of {e.name}"
               />
-              <span class="muted">g</span>
+              <span class="muted">{e.whole ? '×' : 'g'}</span>
               <span class="ml-auto min-w-[4.25rem] text-right text-sm font-medium whitespace-nowrap tabular-nums sm:ml-0">{Math.round(scale(e, 'kcal'))} kcal</span>
               <button class="btn-icon size-8" aria-label="Remove {e.name}" onclick={() => removeEntry(e.id)}><Icon name="x" /></button>
             </span>

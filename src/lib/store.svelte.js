@@ -101,6 +101,7 @@ function cleanEntry(e) {
     fiber: nonNeg(e.fiber),
     salt: nonNeg(e.salt),
     icon: str(e.icon) || undefined,
+    ...(e.whole === true && { whole: true }),
   };
 }
 
@@ -250,6 +251,7 @@ export function addEntry({ date, meal, product, grams }) {
     fiber: product.fiber ?? 0,
     salt: product.salt ?? 0,
     icon: foodIcon(product),
+    ...(product.whole && { whole: true }),
   });
 }
 
