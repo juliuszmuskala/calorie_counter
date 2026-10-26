@@ -16,6 +16,13 @@
   ];
   const fmt = (n, key) => (key === 'salt' ? Math.round(n * 100) / 100 : Math.round(n * 10) / 10).toString();
 
+  // ingredient weights are stored for the whole recipe; show them for the portion in this entry
+  const ingredients = $derived.by(() => {
+    const list = e?.ingredients ?? [];
+    const total = list.reduce((s, i) => s + i.grams, 0);
+    return total > 0 ? list.map((i) => ({ name: i.name, grams: Math.round(((i.grams * e.grams) / total) * 10) / 10 })) : [];
+  });
+
   function setGrams(ev) {
     const v = ev.currentTarget.valueAsNumber;
     if (v > 0) e.grams = e.whole ? v * 100 : v;
@@ -53,6 +60,17 @@
         {/each}
       </tbody>
     </table>
+
+    {#if ingredients.length}
+      <section class="grid gap-1">
+        <h3 class="font-semibold">Ingredients for this portion</h3>
+        <ul class="divided">
+          {#each ingredients as ing}
+            <li class="flex justify-between gap-2"><span class="min-w-0 break-words">{ing.name}</span><span class="muted tabular-nums">{ing.grams} g</span></li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
 
     <p class="muted">Sodium in this portion: {Math.round((scale(e, 'salt') / 2.5) * 1000)} mg</p>
 

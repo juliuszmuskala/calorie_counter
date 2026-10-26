@@ -93,9 +93,14 @@ function cleanWeights(list) {
   return [...byDay.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
+// A logged recipe remembers its ingredients (grams for the whole recipe) so they can be shown without the saved recipe.
+const cleanIngredients = (list) =>
+  (Array.isArray(list) ? list : []).filter((i) => i && str(i.name) && isNum(i.grams) && i.grams > 0).map((i) => ({ name: i.name, grams: i.grams }));
+
 function cleanEntry(e) {
   if (!e || typeof e !== 'object' || !isDateStr(e.date) || !isNum(e.grams) || e.grams <= 0) return null;
   if (!str(e.name) || !isNum(e.kcal)) return null;
+  const ingredients = cleanIngredients(e.ingredients);
   return {
     id: str(e.id) || uid(),
     date: e.date,
@@ -112,6 +117,7 @@ function cleanEntry(e) {
     icon: str(e.icon) || undefined,
     ...(e.whole === true && { whole: true }),
     ...(e.planned === true && { planned: true }),
+    ...(ingredients.length && { ingredients }),
   };
 }
 
@@ -315,6 +321,7 @@ export function addEntry({ date, meal, product, grams, planned = false }) {
     icon: foodIcon(product),
     ...(product.whole && { whole: true }),
     ...(planned && { planned: true }),
+    ...(product.source === 'recipe' && product.recipe?.ingredients?.length && { ingredients: cleanIngredients(product.recipe.ingredients) }),
   });
 }
 
