@@ -352,7 +352,7 @@
                 {#if e.brand}<span class="muted block truncate">{e.brand}</span>{/if}
               </span>
             </button>
-            <span class="flex items-center gap-1 pl-[3.25rem] sm:shrink-0 sm:pl-0">
+            <span class="flex min-w-0 items-center justify-between gap-1 sm:shrink-0 sm:justify-start">
               <input
                 class="field w-[4.25rem] px-2 py-1"
                 type="number"
@@ -364,11 +364,13 @@
                 aria-label="{e.whole ? 'Quantity' : 'Grams'} of {e.name}"
               />
               <span class="muted">{e.whole ? '×' : 'g'}</span>
-              <span class="ml-auto min-w-[4.25rem] text-right text-sm font-medium whitespace-nowrap tabular-nums sm:ml-0">{Math.round(scale(e, 'kcal'))} kcal</span>
+              <span class="ml-auto flex items-center gap-1 sm:ml-0">
+              <span class="min-w-[3.25rem] text-right text-sm font-medium whitespace-nowrap tabular-nums sm:min-w-[4.25rem]">{Math.round(scale(e, 'kcal'))} kcal</span>
               {#if e.planned}
                 <button class="btn-icon size-8 text-emerald-700 dark:text-emerald-400" aria-label="Mark {e.name} as eaten" title="Mark as eaten" onclick={() => markEaten(e.id)}><Icon name="check" /></button>
               {/if}
               <button class="btn-icon size-8" aria-label="Remove {e.name}" onclick={() => removeEntry(e.id)}><Icon name="x" /></button>
+              </span>
             </span>
           </li>
         {/each}
