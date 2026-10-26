@@ -110,6 +110,7 @@ function cleanEntry(e) {
     salt: nonNeg(e.salt),
     icon: str(e.icon) || undefined,
     ...(e.whole === true && { whole: true }),
+    ...(e.planned === true && { planned: true }),
   };
 }
 
@@ -288,7 +289,7 @@ export function saveProduct(p) {
 export const findSaved = (p) =>
   db.products.find((x) => (p.id && x.id === p.id) || (p.barcode && x.barcode === p.barcode) || (x.name === p.name && x.brand === (p.brand ?? '')));
 
-export function addEntry({ date, meal, product, grams }) {
+export function addEntry({ date, meal, product, grams, planned = false }) {
   db.entries.push({
     id: uid(),
     date,
@@ -304,7 +305,17 @@ export function addEntry({ date, meal, product, grams }) {
     salt: product.salt ?? 0,
     icon: foodIcon(product),
     ...(product.whole && { whole: true }),
+    ...(planned && { planned: true }),
   });
+}
+
+// Planned entries are ghosts: they show in the diary but count towards nothing until marked as eaten.
+export const isPlanned = (e) => e.planned === true;
+export const eaten = (entries) => entries.filter((e) => !isPlanned(e));
+
+export function markEaten(id) {
+  const e = db.entries.find((x) => x.id === id);
+  if (e) delete e.planned;
 }
 
 export const removeEntry = (id) => {
@@ -504,7 +515,7 @@ function dayStatus(date, t) {
 }
 
 export function comboStatus(date) {
-  return dayStatus(date, totals(db.entries.filter((e) => e.date === date)));
+  return dayStatus(date, totals(db.entries.filter((e) => e.date === date && !e.planned)));
 }
 
 const EMPTY_TOTALS = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, salt: 0 };
@@ -512,6 +523,7 @@ const EMPTY_TOTALS = { kcal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, salt: 0 
 function groupByDate() {
   const byDate = new Map();
   for (const e of db.entries) {
+    if (e.planned) continue;
     if (!byDate.has(e.date)) byDate.set(e.date, []);
     byDate.get(e.date).push(e);
   }
@@ -531,7 +543,7 @@ const isComboDay = (d, byDate) => dayStatus(d, byDate.has(d) ? totals(byDate.get
 function simulate(upTo, today) {
   const { comboGraceDays: grace = 0, comboGraceCooldown: cooldown = 0 } = db.goals;
   const byDate = groupByDate();
-  const first = db.entries.reduce((min, e) => (e.date < min ? e.date : min), upTo);
+  const first = db.entries.reduce((min, e) => (!e.planned && e.date < min ? e.date : min), upTo);
   const start = first > addDays(upTo, -400) ? first : addDays(upTo, -400);
   const marks = new Map();
   let count = 0;

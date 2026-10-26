@@ -8,7 +8,7 @@
   const today = todayStr();
   let range = $state(30);
   // start on the most recent day with something logged, so the detail line has numbers in it
-  let selected = $state(db.entries.reduce((m, e) => (e.date <= today && e.date > m ? e.date : m), '') || today);
+  let selected = $state(db.entries.reduce((m, e) => (!e.planned && e.date <= today && e.date > m ? e.date : m), '') || today);
 
   const dateObj = (d) => new Date(d + 'T12:00:00');
   const shortDate = (d) => dateObj(d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
@@ -18,6 +18,7 @@
   const byDate = $derived.by(() => {
     const m = new Map();
     for (const e of db.entries) {
+      if (e.planned) continue;
       if (!m.has(e.date)) m.set(e.date, []);
       m.get(e.date).push(e);
     }

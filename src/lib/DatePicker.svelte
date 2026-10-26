@@ -15,7 +15,7 @@
   const weekdays = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(undefined, { weekday: 'short' })); // Monday first
   const lead = $derived((new Date(year, month, 1).getDay() + 6) % 7);
   const days = $derived(Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, i) => `${year}-${pad(month + 1)}-${pad(i + 1)}`));
-  const logged = $derived(new Set(db.entries.map((e) => e.date)));
+  const logged = $derived(new Set(db.entries.filter((e) => !e.planned).map((e) => e.date)));
   // 'combo' = all daily goals met, 'forgiven' = missed day covered by the grace period
   const marks = $derived(comboDays(days[0], days[days.length - 1], today));
 

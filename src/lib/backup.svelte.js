@@ -119,7 +119,7 @@ export const daysSinceBackup = () => (backupMeta.last ? Math.floor((Date.now() -
 
 // Whether to nag: there is data, nothing is keeping it safe automatically, and the last backup is old or missing.
 export const reminderDue = () =>
-  db.entries.length > 0 &&
+  db.entries.some((e) => !e.planned) &&
   !backup.fileName &&
   Date.now() > backup.snoozeUntil &&
   (!backupMeta.last || Date.now() - backupMeta.last > STALE_MS);

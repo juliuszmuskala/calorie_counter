@@ -17,10 +17,10 @@
     grams = p.whole ? 1 : p.servingGrams || 100;
   }
 
-  function add() {
+  function add(planned = false) {
     // products found online are kept in the library automatically
     if (selected.source === 'api' && !findSaved(selected)) saveProduct(selected);
-    addEntry({ date, meal, product: selected, grams: Number(grams) * (selected.whole ? 100 : 1) });
+    addEntry({ date, meal, product: selected, grams: Number(grams) * (selected.whole ? 100 : 1), planned });
     onclose();
   }
 
@@ -75,8 +75,9 @@
       </p>
       <div class="grid grid-cols-2 gap-2">
         <button class="btn" onclick={() => (selected = null)}>Back</button>
-        <button class="btn btn-primary" disabled={!(Number(grams) > 0)} onclick={add}>Add to {meal}</button>
+        <button class="btn btn-primary" disabled={!(Number(grams) > 0)} onclick={() => add()}>Add to {meal}</button>
       </div>
+      <button class="btn btn-dashed" disabled={!(Number(grams) > 0)} onclick={() => add(true)}>Plan for {meal} (not eaten yet)</button>
     </div>
   {:else if mode === 'recipe'}
     <RecipeBuilder submitLabel="Save & add" allowOneTime onsave={saveRecipe} oncancel={() => (mode = 'pick')} />

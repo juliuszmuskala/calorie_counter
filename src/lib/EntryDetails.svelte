@@ -1,5 +1,5 @@
 <script>
-  import { db, MEALS, scale, removeEntry } from './store.svelte.js';
+  import { db, MEALS, scale, removeEntry, markEaten } from './store.svelte.js';
   import Modal from './Modal.svelte';
   import ProductIcon from './ProductIcon.svelte';
 
@@ -27,7 +27,7 @@
   <Modal title={e.name} {onclose}>
     <div class="flex items-center gap-3">
       <ProductIcon item={e} class="size-12" />
-      <span class="muted">{e.brand || 'Logged food'}</span>
+      <span class="muted">{e.planned ? 'Planned, not eaten yet' : e.brand || 'Logged food'}</span>
     </div>
 
     <div class="grid grid-cols-2 gap-2">
@@ -56,6 +56,9 @@
 
     <p class="muted">Sodium in this portion: {Math.round((scale(e, 'salt') / 2.5) * 1000)} mg</p>
 
+    {#if e.planned}
+      <button class="btn btn-primary" onclick={() => { markEaten(e.id); onclose(); }}>Mark as eaten</button>
+    {/if}
     <div class="grid grid-cols-2 gap-2">
       <button class="btn btn-danger" onclick={() => { removeEntry(e.id); onclose(); }}>Remove</button>
       <button class="btn btn-primary" onclick={onclose}>Done</button>

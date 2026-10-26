@@ -1,6 +1,6 @@
 <script>
   import {
-    db, ui, exportJson, MEALS, todayStr, addDays, removeEntry, scale, totals, startPersisting, isDue, isTaken, isShortcutHidden, toggleSupplement, sessionsOn, workoutDone, workoutDue, comboStatus, comboStreak,
+    db, ui, exportJson, MEALS, todayStr, addDays, removeEntry, markEaten, scale, totals, startPersisting, isDue, isTaken, isShortcutHidden, toggleSupplement, sessionsOn, workoutDone, workoutDue, comboStatus, comboStreak,
   } from './lib/store.svelte.js';
   import { backup, startAutoBackup, reminderDue, daysSinceBackup, resumeBackup, snoozeReminder } from './lib/backup.svelte.js';
   import AddFood from './lib/AddFood.svelte';
@@ -58,7 +58,10 @@
   });
 
   const dayEntries = $derived(db.entries.filter((e) => e.date === date));
-  const sum = $derived(totals(dayEntries));
+  const sum = $derived(totals(dayEntries.filter((e) => !e.planned)));
+  const plannedSum = $derived(totals(dayEntries.filter((e) => e.planned)));
+  const hasPlanned = $derived(dayEntries.some((e) => e.planned));
+  const projected = $derived(sum.kcal + plannedSum.kcal);
   const remaining = $derived(db.goals.kcal - sum.kcal);
   const dueSupplements = $derived(db.supplements.filter((s) => s.group !== 'activity' && isDue(s, date)));
   const dueActivities = $derived(db.supplements.filter((s) => s.group === 'activity' && isDue(s, date) && !isShortcutHidden(s)));
@@ -146,7 +149,8 @@
   );
 
   const mealEntries = (m) => dayEntries.filter((e) => e.meal === m);
-  const mealKcal = (m) => Math.round(totals(mealEntries(m)).kcal);
+  const mealKcal = (m) => Math.round(totals(mealEntries(m).filter((e) => !e.planned)).kcal);
+  const mealPlanned = (m) => Math.round(totals(mealEntries(m).filter((e) => e.planned)).kcal);
 
   function setAmount(e, ev) {
     const v = ev.currentTarget.valueAsNumber;
@@ -212,17 +216,20 @@
         <div class="muted {remaining < 0 ? 'text-amber-600! dark:text-amber-400!' : ''}">{remaining < 0 ? 'over' : 'left'}</div>
       </div>
     </div>
-    <Bar value={sum.kcal} goal={db.goals.kcal} />
+    <Bar value={sum.kcal} goal={db.goals.kcal} ghost={plannedSum.kcal} />
     <div class="grid grid-cols-2 gap-4 text-sm">
       {#each [['Protein', 'protein'], ['Fiber', 'fiber']] as [name, k]}
         <div class="grid gap-1">
           <div class="flex justify-between gap-2">
-            <span>{name}</span><span class="muted">{Math.round(sum[k])} / {db.goals[k]} g</span>
+            <span>{name}</span><span class="muted">{Math.round(sum[k])}{#if plannedSum[k] > 0}<span class="ml-1 italic">(+{Math.round(plannedSum[k])})</span>{/if} / {db.goals[k]} g</span>
           </div>
-          <Bar value={sum[k]} goal={db.goals[k]} small />
+          <Bar value={sum[k]} goal={db.goals[k]} small ghost={plannedSum[k]} />
         </div>
       {/each}
     </div>
+    {#if hasPlanned}
+      <p class="muted italic">Planned: +{Math.round(plannedSum.kcal)} kcal, {Math.round(projected)} kcal if all eaten ({Math.round(db.goals.kcal - projected) >= 0 ? `${Math.round(db.goals.kcal - projected)} left` : `${Math.round(projected - db.goals.kcal)} over`})</p>
+    {/if}
     <p class="muted">Carbs {Math.round(sum.carbs)} g · Fat {Math.round(sum.fat)} g · Salt {Math.round(sum.salt * 10) / 10} g</p>
   </section>
 
@@ -332,16 +339,16 @@
     <section class="card" aria-label={m}>
       <div class="flex items-baseline justify-between">
         <h2 class="font-semibold">{m}</h2>
-        <span class="muted">{mealKcal(m)} kcal</span>
+        <span class="muted">{mealKcal(m)} kcal{#if mealPlanned(m)}<span class="ml-1 italic">(+{mealPlanned(m)} planned)</span>{/if}</span>
       </div>
       <ul class="divided">
         {#each mealEntries(m) as e (e.id)}
           <!-- phones: name on top, controls underneath; wider screens: one line -->
-          <li class="grid gap-1 sm:flex sm:items-center sm:justify-between sm:gap-2">
+          <li class="grid gap-1 sm:flex sm:items-center sm:justify-between sm:gap-2 {e.planned ? 'opacity-60' : ''}">
             <button class="-mx-2 flex min-w-0 items-center gap-3 rounded-lg sm:flex-1 px-2 py-1 text-left hover:bg-stone-100 dark:hover:bg-stone-800" onclick={() => (viewing = e.id)} aria-label="Nutrition details for {e.name}">
               <ProductIcon item={e} />
               <span class="min-w-0">
-                <span class="line-clamp-2 break-words">{e.name}</span>
+                <span class="line-clamp-2 break-words {e.planned ? 'italic' : ''}">{e.name}</span>
                 {#if e.brand}<span class="muted block truncate">{e.brand}</span>{/if}
               </span>
             </button>
@@ -358,6 +365,9 @@
               />
               <span class="muted">{e.whole ? '×' : 'g'}</span>
               <span class="ml-auto min-w-[4.25rem] text-right text-sm font-medium whitespace-nowrap tabular-nums sm:ml-0">{Math.round(scale(e, 'kcal'))} kcal</span>
+              {#if e.planned}
+                <button class="btn-icon size-8 text-emerald-700 dark:text-emerald-400" aria-label="Mark {e.name} as eaten" title="Mark as eaten" onclick={() => markEaten(e.id)}><Icon name="check" /></button>
+              {/if}
               <button class="btn-icon size-8" aria-label="Remove {e.name}" onclick={() => removeEntry(e.id)}><Icon name="x" /></button>
             </span>
           </li>

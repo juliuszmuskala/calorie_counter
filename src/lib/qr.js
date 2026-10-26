@@ -32,7 +32,7 @@ const FOOD_KEYS = ['name', 'brand', 'kcal', 'protein', 'carbs', 'fat', 'fiber', 
 function pack(obj) {
   const foods = [];
   const index = new Map();
-  const rows = (obj.entries ?? []).map((e) => {
+  const rows = (obj.entries ?? []).filter((e) => !e.planned).map((e) => {
     const food = FOOD_KEYS.map((k) => e[k] ?? '');
     const key = JSON.stringify(food);
     if (!index.has(key)) index.set(key, foods.push(food) - 1);
