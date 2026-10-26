@@ -1,7 +1,7 @@
 <script>
   import Icon from './Icon.svelte';
   import {
-    db, exportJson, backupMeta, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS, WEEK_ORDER,
+    db, exportJson, backupMeta, isShortcutHidden, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS, WEEK_ORDER,
   } from './store.svelte.js';
   import { backup, linkBackupFile, unlinkBackupFile, resumeBackup } from './backup.svelte.js';
   import Modal from './Modal.svelte';
@@ -152,7 +152,7 @@
           <li class="flex items-center justify-between gap-2">
             <span class="min-w-0">
               <span class="break-words">{s.name}</span>
-              <span class="muted block">{s.group === 'activity' ? 'Activity' : 'Supplement'} · {describeSchedule(s.schedule)}</span>
+              <span class="muted block">{s.group === 'activity' ? 'Activity' : 'Supplement'} · {describeSchedule(s.schedule)}{isShortcutHidden(s) ? ' · hidden while a workout plan is loaded' : ''}</span>
             </span>
             <span class="flex shrink-0">
               <button class="btn-icon" aria-label="Edit {s.name}" onclick={() => editItem(s)}><Icon name="pencil" /></button>

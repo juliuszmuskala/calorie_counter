@@ -1,11 +1,13 @@
 <script>
   import {
-    db, ui, exportJson, MEALS, todayStr, addDays, removeEntry, scale, totals, startPersisting, isDue, isTaken, toggleSupplement, comboStatus, comboStreak,
+    db, ui, exportJson, MEALS, todayStr, addDays, removeEntry, scale, totals, startPersisting, isDue, isTaken, isShortcutHidden, toggleSupplement, sessionsOn, workoutDone, workoutDue, comboStatus, comboStreak,
   } from './lib/store.svelte.js';
   import { backup, startAutoBackup, reminderDue, daysSinceBackup, resumeBackup, snoozeReminder } from './lib/backup.svelte.js';
   import AddFood from './lib/AddFood.svelte';
   import Settings from './lib/Settings.svelte';
   import Trends from './lib/Trends.svelte';
+  import Workouts from './lib/Workouts.svelte';
+  import { planState, nextWorkout, progress, sessionLabel } from './lib/workout.svelte.js';
   import DatePicker from './lib/DatePicker.svelte';
   import EntryDetails from './lib/EntryDetails.svelte';
   import IncomingTransfer from './lib/IncomingTransfer.svelte';
@@ -23,6 +25,7 @@
   let adding = $state(null); // meal name while the add dialog is open
   let settings = $state(false);
   let trends = $state(false);
+  let workouts = $state(null); // { openId } while the workout dialog is open
   let viewing = $state(null); // id of the logged entry shown in the details dialog
   let picking = $state(false);
   let incoming = $state(null); // data arriving from a scanned QR code
@@ -58,7 +61,11 @@
   const sum = $derived(totals(dayEntries));
   const remaining = $derived(db.goals.kcal - sum.kcal);
   const dueSupplements = $derived(db.supplements.filter((s) => s.group !== 'activity' && isDue(s, date)));
-  const dueActivities = $derived(db.supplements.filter((s) => s.group === 'activity' && isDue(s, date)));
+  const dueActivities = $derived(db.supplements.filter((s) => s.group === 'activity' && isDue(s, date) && !isShortcutHidden(s)));
+
+  const daySessions = $derived(sessionsOn(date));
+  const activeSession = $derived(daySessions.find((w) => !w.done) ?? daySessions[0]);
+  const nextUp = $derived(planState.plan ? nextWorkout(planState.plan) : null);
 
   const combo = $derived(comboStatus(date));
   const streakInfo = $derived(comboStreak(date, today));
@@ -107,6 +114,15 @@
           },
         ]
       : []),
+    ...(combo.workout.due
+      ? [
+          {
+            label: 'Workout',
+            ok: combo.workout.ok,
+            detail: combo.workout.ok ? 'finished' : 'log and finish today\'s workout',
+          },
+        ]
+      : []),
     {
       label: 'Protein and fiber',
       ok: combo.proteinFiber.ok,
@@ -142,6 +158,7 @@
   <header class="flex items-center justify-between">
     <h1 class="font-mono text-xl font-bold [word-spacing:-0.35em]">sudo <span class="text-emerald-600 dark:text-emerald-400">upgrade</span></h1>
     <span class="flex">
+      <button class="btn-icon" onclick={() => (workouts = {})} aria-label="Workouts"><Icon name="dumbbell" class="size-[1.3rem]" /></button>
       <button class="btn-icon" onclick={() => (trends = true)} aria-label="Trends"><Icon name="chart" class="size-[1.3rem]" /></button>
       <button class="btn-icon" onclick={() => (settings = true)} aria-label="Settings"><Icon name="settings" class="size-[1.3rem]" /></button>
     </span>
@@ -292,6 +309,25 @@
     {/if}
   {/each}
 
+  {#if planState.plan}
+    <section class="card" aria-label="Workout">
+      <div class="flex items-baseline justify-between gap-2">
+        <h2 class="font-semibold">Workout</h2>
+        {#if workoutDue(date)}<span class="muted">{workoutDone(date) ? 'done' : 'due today'}</span>{/if}
+      </div>
+      {#if activeSession}
+        <button class="btn justify-between" onclick={() => (workouts = { openId: activeSession.id })}>
+          <span>{sessionLabel(activeSession)}</span>
+          <span class="muted">{activeSession.done ? 'finished' : `${progress(activeSession).done}/${progress(activeSession).sets} sets`}</span>
+        </button>
+      {:else}
+        <button class="btn btn-dashed" onclick={() => (workouts = {})}>
+          Start Week {nextUp.week} · {planState.plan.days.find((d) => d.id === nextUp.day)?.name}
+        </button>
+      {/if}
+    </section>
+  {/if}
+
   {#each MEALS as m}
     <section class="card" aria-label={m}>
       <div class="flex items-baseline justify-between">
@@ -338,3 +374,4 @@
 {#if viewing}<EntryDetails id={viewing} onclose={() => (viewing = null)} />{/if}
 {#if settings}<Settings onclose={() => (settings = false)} />{/if}
 {#if trends}<Trends onclose={() => (trends = false)} />{/if}
+{#if workouts}<Workouts {date} openId={workouts.openId ?? null} onclose={() => (workouts = null)} />{/if}

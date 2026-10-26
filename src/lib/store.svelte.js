@@ -41,6 +41,12 @@ const defaultSupplements = () => [
   ...defaultActivities(),
 ];
 
+const defaultWorkoutSettings = () => ({
+  schedule: [], // weekdays (0 = Sunday) on which a planned workout is due for the combo; empty = the plan never blocks the combo
+  injury: { on: false, areas: [], overrides: {} }, // overrides: { exerciseId: 'on' | 'off' }
+  videoSound: false, // demo videos start muted; this lets them start with sound
+});
+
 const defaults = () => ({
   version: 2,
   goals: { kcal: 2100, kcalTolerance: 100, protein: 120, fiber: 40, comboActivities: true, comboGraceDays: 1, comboGraceCooldown: 7, targetWeight: 0 },
@@ -49,6 +55,8 @@ const defaults = () => ({
   products: [], // saved/custom products and recipes, nutrition per 100 g
   weights: [], // body weight in kg, one per day: { date, kg }, sorted by date
   entries: [], // log entries; carry a product snapshot so they stay valid if the library changes
+  workouts: [], // tracked workout sessions (see workout.svelte.js); a finished one counts as a done workout for its day
+  workout: defaultWorkoutSettings(),
 });
 
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
@@ -125,6 +133,46 @@ function cleanSupplement(s) {
   return { id: str(s.id) || uid(), name: s.name.trim(), group: s.group === 'activity' ? 'activity' : 'supplement', schedule };
 }
 
+const nameList = (v) => [...new Set((Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()))];
+
+function cleanWorkoutSettings(w) {
+  const base = defaultWorkoutSettings();
+  if (!w || typeof w !== 'object') return base;
+  const overrides = {};
+  for (const [k, v] of Object.entries(w.injury?.overrides ?? {})) if (v === 'on' || v === 'off') overrides[k] = v;
+  return {
+    schedule: [...new Set((Array.isArray(w.schedule) ? w.schedule : []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b),
+    injury: { on: w.injury?.on === true, areas: nameList(w.injury?.areas), overrides },
+    videoSound: w.videoSound === true,
+  };
+}
+
+const optNum = (v) => (isNum(v) && v >= 0 ? v : null);
+
+function cleanSession(w) {
+  if (!w || typeof w !== 'object' || !isDateStr(w.date) || !Array.isArray(w.items)) return null;
+  const items = w.items
+    .filter((i) => i && typeof i === 'object' && str(i.name))
+    .map((i) => ({
+      id: str(i.id) || uid(),
+      name: i.name,
+      sets: (Array.isArray(i.sets) ? i.sets : []).map((x) => ({ load: optNum(x?.load), reps: optNum(x?.reps), done: x?.done === true })),
+      skipped: i.skipped === true,
+      ...(i.reason === 'injury' && { reason: 'injury' }),
+      ...(str(i.video) && { video: i.video }),
+      ...(isNum(i.target) && { target: i.target }),
+    }));
+  return {
+    id: str(w.id) || uid(),
+    date: w.date,
+    week: Number.isInteger(w.week) && w.week > 0 ? w.week : 1,
+    day: str(w.day),
+    dayName: str(w.dayName) || 'Workout',
+    done: w.done === true,
+    items,
+  };
+}
+
 const clean = (list, fn) => (Array.isArray(list) ? list.map(fn).filter(Boolean) : []);
 
 // Data from before activities existed (version 1) gets the default activity items once.
@@ -163,6 +211,8 @@ function sanitize(d) {
     products: clean(d?.products, cleanProduct),
     weights: cleanWeights(d?.weights),
     entries: clean(d?.entries, cleanEntry),
+    workouts: clean(d?.workouts, cleanSession),
+    workout: cleanWorkoutSettings(d?.workout),
   };
 }
 
@@ -186,6 +236,8 @@ function replaceAll(next) {
   db.products = next.products;
   db.weights = next.weights;
   db.entries = next.entries;
+  db.workouts = next.workouts;
+  db.workout = next.workout;
 }
 
 export function startPersisting() {
@@ -359,6 +411,8 @@ export function applyImport(next, mode) {
   for (const [day, ids] of Object.entries(next.supplementLog)) {
     db.supplementLog[day] = [...new Set([...(db.supplementLog[day] ?? []), ...ids])];
   }
+  const wIds = new Set(db.workouts.map((w) => w.id));
+  db.workouts.push(...next.workouts.filter((w) => !wIds.has(w.id)));
   return `Merged ${newE.length} new entries and ${newP.length} new products.`;
 }
 
@@ -373,6 +427,7 @@ export function exportPayload(log = 'all') {
     entries: snap.entries.filter((e) => inRange(e.date)),
     supplementLog: Object.fromEntries(Object.entries(snap.supplementLog).filter(([d]) => inRange(d))),
     weights: snap.weights.filter((w) => inRange(w.date)),
+    workouts: snap.workouts.filter((w) => inRange(w.date)),
   };
 }
 
@@ -390,6 +445,18 @@ export function isDue(s, date) {
 }
 
 export const isTaken = (id, date) => !!db.supplementLog[date]?.includes(id);
+
+// ---- tracked workouts
+
+export const sessionsOn = (date) => db.workouts.filter((w) => w.date === date);
+export const workoutDone = (date) => db.workouts.some((w) => w.date === date && w.done);
+// A planned workout is due on the weekdays chosen in the workout settings.
+export const workoutDue = (date) => db.workout.schedule.includes(new Date(date + 'T12:00:00').getDay());
+
+// Set by workout.svelte.js while a plan is loaded. The plain "Strength workout" checkbox is then replaced by tracked workouts:
+// it is hidden and no longer part of the combo, so a workout can't be ticked off without logging it.
+export const planInfo = $state({ loaded: false });
+export const isShortcutHidden = (s) => planInfo.loaded && s.id === 'strength';
 
 export function toggleSupplement(id, date) {
   const list = db.supplementLog[date] ?? [];
@@ -424,13 +491,16 @@ function dayStatus(date, t) {
   const taken = due.filter((s) => isTaken(s.id, date)).length;
   const { kcal, kcalTolerance, protein, fiber, comboActivities } = db.goals;
   const supplements = { done: taken, total: due.length, ok: taken === due.length };
-  const dueActivities = db.supplements.filter((s) => s.group === 'activity' && isDue(s, date));
+  const dueActivities = db.supplements.filter((s) => s.group === 'activity' && isDue(s, date) && !isShortcutHidden(s));
   const doneActivities = dueActivities.filter((s) => isTaken(s.id, date)).length;
   // a rest day (nothing due) counts as done; when the option is off activities never block the combo
   const activities = { done: doneActivities, total: dueActivities.length, ok: !comboActivities || doneActivities === dueActivities.length };
+  // tracked workouts: only required on the workout days chosen in the workout settings, and only while a plan is loaded
+  const workoutRequired = planInfo.loaded && workoutDue(date);
+  const workout = { due: workoutRequired, ok: !workoutRequired || workoutDone(date) };
   const proteinFiber = { ok: t.protein >= protein && t.fiber >= fiber };
   const calories = { ok: t.kcal > 0 && Math.abs(t.kcal - kcal) <= kcalTolerance };
-  return { supplements, activities, proteinFiber, calories, all: supplements.ok && activities.ok && proteinFiber.ok && calories.ok };
+  return { supplements, activities, workout, proteinFiber, calories, all: supplements.ok && activities.ok && workout.ok && proteinFiber.ok && calories.ok };
 }
 
 export function comboStatus(date) {
