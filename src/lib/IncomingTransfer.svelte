@@ -63,9 +63,9 @@
       <p class="text-amber-700 dark:text-amber-400" role="alert">This deletes everything currently on this device and replaces it with the transfer.</p>
     {/if}
     {#if failure}<p class="text-red-600 dark:text-red-400" role="alert">{failure}</p>{/if}
-    <div class="grid grid-cols-2 gap-2">
+    <div class="flex gap-2">
       <button class="btn" onclick={() => (confirming ? (confirming = false) : onclose())}>{confirming ? 'Back' : 'Cancel'}</button>
-      <button class="btn btn-primary {confirming ? 'bg-red-600! border-red-600!' : ''}" onclick={doImport}>
+      <button class="btn btn-primary flex-1 whitespace-nowrap {confirming ? 'bg-red-600! border-red-600!' : ''}" onclick={doImport}>
         {confirming ? 'Yes, replace everything' : 'Import'}
       </button>
     </div>

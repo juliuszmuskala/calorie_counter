@@ -73,9 +73,9 @@
           · P {Math.round(selected.protein * factor)} g · Fiber {Math.round((selected.fiber ?? 0) * factor)} g
         </span>
       </p>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="flex gap-2">
         <button class="btn" onclick={() => (selected = null)}>Back</button>
-        <button class="btn btn-primary" disabled={!(Number(grams) > 0)} onclick={() => add()}>Add to {meal}</button>
+        <button class="btn btn-primary flex-1 whitespace-nowrap" disabled={!(Number(grams) > 0)} onclick={() => add()}>Add to {meal}</button>
       </div>
       <button class="btn btn-dashed" disabled={!(Number(grams) > 0)} onclick={() => add(true)}>Plan for {meal} (not eaten yet)</button>
     </div>

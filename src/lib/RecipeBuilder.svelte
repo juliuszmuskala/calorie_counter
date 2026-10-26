@@ -143,9 +143,9 @@
       <label class="flex items-center gap-2"><input class="size-5 accent-emerald-600" type="checkbox" bind:checked={save} /> Save to my products (uncheck for a one-time recipe)</label>
     {/if}
 
-    <div class="grid grid-flow-col auto-cols-fr gap-2">
+    <div class="flex gap-2">
       {#if oncancel}<button type="button" class="btn" onclick={oncancel}>Cancel</button>{/if}
-      <button class="btn btn-primary" disabled={!valid}>{allowOneTime && !save ? 'Add without saving' : submitLabel}</button>
+      <button class="btn btn-primary flex-1 whitespace-nowrap" disabled={!valid}>{allowOneTime && !save ? 'Add without saving' : submitLabel}</button>
     </div>
   </form>
 {/if}
