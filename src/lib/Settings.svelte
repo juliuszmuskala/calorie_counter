@@ -1,7 +1,7 @@
 <script>
   import Icon from './Icon.svelte';
   import {
-    db, exportJson, backupMeta, isShortcutHidden, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS, WEEK_ORDER,
+    db, exportJson, backupMeta, isShortcutHidden, isActivity, importJson, removeProduct, saveProduct, saveSupplement, removeSupplement, describeSchedule, todayStr, isDateStr, resetAll, WEEKDAYS, WEEK_ORDER,
   } from './store.svelte.js';
   import { backup, linkBackupFile, unlinkBackupFile, resumeBackup } from './backup.svelte.js';
   import Modal from './Modal.svelte';
@@ -24,9 +24,11 @@
 
   // add/edit form for supplements and activities
   const blankItem = () => ({ id: undefined, name: '', group: 'supplement', type: 'daily', days: [1], every: 2, anchor: todayStr() });
-  let item = $state(blankItem());
+  let itemsOpen = $state(false); // the supplements and activities screen
+  let item = $state(null); // the item being added or edited; null = showing the list
 
   function editItem(s) {
+    itemsOpen = true;
     const r = s.schedule;
     item = {
       ...blankItem(),
@@ -44,7 +46,9 @@
     item.days = item.days.includes(d) ? item.days.filter((x) => x !== d) : [...item.days, d].sort((a, b) => a - b);
   }
 
-  const itemValid = $derived(item.name.trim() && (item.type !== 'weekdays' || item.days.length > 0));
+  // only one item can be the workout
+  const workoutTaken = $derived(db.supplements.some((s) => s.group === 'workout' && s.id !== item?.id));
+  const itemValid = $derived(item && item.name.trim() && (item.type !== 'weekdays' || item.days.length > 0));
 
   function submitItem(e) {
     e.preventDefault();
@@ -57,7 +61,7 @@
           ? { type, every: Math.max(2, Math.round(Number(every)) || 2), anchor: isDateStr(anchor) ? anchor : todayStr() }
           : { type: 'daily' };
     saveSupplement({ id, name: name.trim(), group, schedule });
-    item = blankItem();
+    item = null;
   }
 
   async function onFile(e) {
@@ -88,7 +92,7 @@
   }
 </script>
 
-<Modal title={creating ? 'New recipe' : editing ? 'Edit recipe' : editingProduct ? 'Edit product' : viewing ? 'Product' : showQr ? 'Transfer via QR code' : 'Settings'} {onclose} confirmClose={creating || editing ? 'Discard changes to this recipe?' : null}>
+<Modal title={itemsOpen ? (item ? (item.id ? 'Edit item' : 'Add item') : 'Supplements and activities') : creating ? 'New recipe' : editing ? 'Edit recipe' : editingProduct ? 'Edit product' : viewing ? 'Product' : showQr ? 'Transfer via QR code' : 'Settings'} {onclose} confirmClose={creating || editing ? 'Discard changes to this recipe?' : null}>
   {#if creating}
     <RecipeBuilder
       onsave={(p) => {
@@ -117,6 +121,68 @@
       }}
       oncancel={() => (editingProduct = null)}
     />
+  {:else if itemsOpen}
+    {#if item}
+      <form class="grid gap-3" onsubmit={submitItem}>
+        <label class="label">Name<input class="field" required bind:value={item.name} placeholder="e.g. Mobility, Omega-3" /></label>
+        <div class="grid grid-cols-[11fr_10fr] gap-2">
+          <label class="label">Type
+            <select class="field" bind:value={item.group}>
+              <option value="supplement">Supplement</option>
+              <option value="activity">Activity</option>
+              <option value="workout" disabled={workoutTaken}>Workout{workoutTaken ? ' (already exists)' : ''}</option>
+            </select>
+          </label>
+          <label class="label">Schedule
+            <select class="field" bind:value={item.type}>
+              <option value="daily">Daily</option>
+              <option value="weekdays">Weekdays</option>
+              <option value="interval">Interval</option>
+            </select>
+          </label>
+        </div>
+        {#if item.type === 'weekdays'}
+          <div class="grid grid-cols-7 gap-1" role="group" aria-label="Weekdays">
+            {#each WEEK_ORDER as i}
+              <button
+                type="button"
+                class="btn min-h-9 px-0 py-1 text-sm {item.days.includes(i) ? 'btn-primary' : ''}"
+                aria-pressed={item.days.includes(i)}
+                onclick={() => toggleDay(i)}>{WEEKDAYS[i].slice(0, 3)}</button
+              >
+            {/each}
+          </div>
+        {:else if item.type === 'interval'}
+          <div class="grid grid-cols-2 gap-2">
+            <label class="label">Every (days)<input class="field" type="number" min="2" inputmode="numeric" bind:value={item.every} /></label>
+            <label class="label">Counting from<input class="field" type="date" bind:value={item.anchor} /></label>
+          </div>
+        {/if}
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" class="btn" onclick={() => (item = null)}>Cancel</button>
+          <button class="btn btn-primary" disabled={!itemValid}>{item.id ? 'Save changes' : 'Add'}</button>
+        </div>
+      </form>
+    {:else}
+      <ul class="divided">
+        {#each db.supplements as s (s.id)}
+          <li class="flex items-center justify-between gap-2">
+            <span class="min-w-0">
+              <span class="break-words">{s.name}</span>
+              <span class="muted block">{s.group === 'workout' ? 'Workout' : isActivity(s) ? 'Activity' : 'Supplement'} · {describeSchedule(s.schedule)}{isShortcutHidden(s) ? ' · hidden while a workout plan is loaded' : ''}</span>
+            </span>
+            <span class="flex shrink-0">
+              <button class="btn-icon" aria-label="Edit {s.name}" onclick={() => editItem(s)}><Icon name="pencil" /></button>
+              <button class="btn-icon" aria-label="Delete {s.name}" onclick={() => removeSupplement(s.id)}><Icon name="trash" /></button>
+            </span>
+          </li>
+        {:else}
+          <li class="muted">Nothing here yet.</li>
+        {/each}
+      </ul>
+      <button class="btn btn-dashed" onclick={() => (item = blankItem())}>+ Add item</button>
+      <button class="btn" onclick={() => (itemsOpen = false)}>Back</button>
+    {/if}
   {:else if showQr}
     <QrExport onback={() => (showQr = false)} />
   {:else if viewing}
@@ -147,62 +213,10 @@
 
     <section class="grid gap-2">
       <h3 class="font-semibold">Supplements and activities</h3>
-      <ul class="divided">
-        {#each db.supplements as s (s.id)}
-          <li class="flex items-center justify-between gap-2">
-            <span class="min-w-0">
-              <span class="break-words">{s.name}</span>
-              <span class="muted block">{s.group === 'activity' ? 'Activity' : 'Supplement'} · {describeSchedule(s.schedule)}{isShortcutHidden(s) ? ' · hidden while a workout plan is loaded' : ''}</span>
-            </span>
-            <span class="flex shrink-0">
-              <button class="btn-icon" aria-label="Edit {s.name}" onclick={() => editItem(s)}><Icon name="pencil" /></button>
-              <button class="btn-icon" aria-label="Delete {s.name}" onclick={() => removeSupplement(s.id)}><Icon name="trash" /></button>
-            </span>
-          </li>
-        {:else}
-          <li class="muted">Nothing here yet.</li>
-        {/each}
-      </ul>
-      <form class="grid gap-2 rounded-xl bg-stone-50 p-3 dark:bg-stone-950" onsubmit={submitItem}>
-        <strong class="text-sm">{item.id ? 'Edit item' : 'Add item'}</strong>
-        <label class="label">Name<input class="field" required bind:value={item.name} placeholder="e.g. Mobility, Omega-3" /></label>
-        <div class="grid grid-cols-[11fr_10fr] gap-2">
-          <label class="label">Type
-            <select class="field" bind:value={item.group}>
-              <option value="supplement">Supplement</option>
-              <option value="activity">Activity</option>
-            </select>
-          </label>
-          <label class="label">Schedule
-            <select class="field" bind:value={item.type}>
-              <option value="daily">Daily</option>
-              <option value="weekdays">Weekdays</option>
-              <option value="interval">Interval</option>
-            </select>
-          </label>
-        </div>
-        {#if item.type === 'weekdays'}
-          <div class="grid grid-cols-7 gap-1" role="group" aria-label="Weekdays">
-            {#each WEEK_ORDER as i}
-              <button
-                type="button"
-                class="btn min-h-9 px-0 py-1 text-sm {item.days.includes(i) ? 'btn-primary' : ''}"
-                aria-pressed={item.days.includes(i)}
-                onclick={() => toggleDay(i)}>{WEEKDAYS[i].slice(0, 3)}</button
-              >
-            {/each}
-          </div>
-        {:else if item.type === 'interval'}
-          <div class="grid grid-cols-2 gap-2">
-            <label class="label">Every (days)<input class="field" type="number" min="2" inputmode="numeric" bind:value={item.every} /></label>
-            <label class="label">Counting from<input class="field" type="date" bind:value={item.anchor} /></label>
-          </div>
-        {/if}
-        <div class="grid grid-flow-col auto-cols-fr gap-2">
-          {#if item.id}<button type="button" class="btn" onclick={() => (item = blankItem())}>Cancel</button>{/if}
-          <button class="btn" disabled={!itemValid}>{item.id ? 'Save changes' : 'Add'}</button>
-        </div>
-      </form>
+      <button class="btn justify-between" onclick={() => (itemsOpen = true)}>
+        <span>Manage supplements and activities</span>
+        <span class="muted">{db.supplements.length}</span>
+      </button>
     </section>
 
     <section class="grid gap-2">

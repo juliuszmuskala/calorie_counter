@@ -1,6 +1,6 @@
 <script>
   import {
-    db, ui, exportJson, MEALS, todayStr, addDays, removeEntry, markEaten, scale, totals, startPersisting, isDue, isTaken, isShortcutHidden, toggleSupplement, sessionsOn, workoutDone, workoutDue, comboStatus, comboStreak,
+    db, ui, exportJson, MEALS, todayStr, addDays, removeEntry, markEaten, scale, totals, startPersisting, isDue, isTaken, isShortcutHidden, isActivity, toggleSupplement, sessionsOn, workoutDone, workoutDue, comboStatus, comboStreak,
   } from './lib/store.svelte.js';
   import { backup, startAutoBackup, reminderDue, daysSinceBackup, resumeBackup, snoozeReminder } from './lib/backup.svelte.js';
   import AddFood from './lib/AddFood.svelte';
@@ -63,8 +63,8 @@
   const hasPlanned = $derived(dayEntries.some((e) => e.planned));
   const projected = $derived(sum.kcal + plannedSum.kcal);
   const remaining = $derived(db.goals.kcal - sum.kcal);
-  const dueSupplements = $derived(db.supplements.filter((s) => s.group !== 'activity' && isDue(s, date)));
-  const dueActivities = $derived(db.supplements.filter((s) => s.group === 'activity' && isDue(s, date) && !isShortcutHidden(s)));
+  const dueSupplements = $derived(db.supplements.filter((s) => !isActivity(s) && isDue(s, date)));
+  const dueActivities = $derived(db.supplements.filter((s) => isActivity(s) && isDue(s, date) && !isShortcutHidden(s)));
 
   const daySessions = $derived(sessionsOn(date));
   const activeSession = $derived(daySessions.find((w) => !w.done) ?? daySessions[0]);

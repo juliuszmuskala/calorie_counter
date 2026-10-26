@@ -24,11 +24,12 @@ const dayNumber = (date) => Math.round(Date.parse(date + 'T00:00:00Z') / 8640000
 
 // ---- defaults & validation
 
-// "Supplements" holds every daily checkbox item. `group` tells them apart: 'supplement' or 'activity' (steps, workouts).
+// "Supplements" holds every daily checkbox item. `group` tells them apart: 'supplement', 'activity' (steps) or 'workout'.
+// A 'workout' is an activity that tracked workouts replace once a plan is loaded.
 // The field names stay as they were so existing saved data and exports keep working.
 const defaultActivities = () => [
   { id: 'steps', name: 'Daily step goal', group: 'activity', schedule: { type: 'daily' } },
-  { id: 'strength', name: 'Strength workout', group: 'activity', schedule: { type: 'weekdays', days: [1, 3, 5] } }, // Mon, Wed, Fri
+  { id: 'strength', name: 'Strength workout', group: 'workout', schedule: { type: 'weekdays', days: [1, 3, 5] } }, // Mon, Wed, Fri
 ];
 
 const defaultSupplements = () => [
@@ -131,7 +132,9 @@ function cleanSupplement(s) {
     const every = Number.isInteger(r.every) && r.every >= 2 ? r.every : 2;
     schedule = { type: 'interval', every, anchor: isDateStr(r.anchor) ? r.anchor : todayStr() };
   }
-  return { id: str(s.id) || uid(), name: s.name.trim(), group: s.group === 'activity' ? 'activity' : 'supplement', schedule };
+  // saved data from before the workout type existed used the default id
+  const group = s.group === 'workout' || (s.group === 'activity' && s.id === 'strength') ? 'workout' : s.group === 'activity' ? 'activity' : 'supplement';
+  return { id: str(s.id) || uid(), name: s.name.trim(), group, schedule };
 }
 
 const nameList = (v) => [...new Set((Array.isArray(v) ? v : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()))];
@@ -183,6 +186,12 @@ function withDefaultActivities(d, items) {
   return [...items, ...defaultActivities().filter((a) => !have.has(a.id))];
 }
 
+// There is a single workout item; any further ones (e.g. from a merged import) become plain activities.
+function onlyOneWorkout(items) {
+  let seen = false;
+  return items.map((s) => (s.group !== 'workout' ? s : seen ? { ...s, group: 'activity' } : ((seen = true), s)));
+}
+
 function sanitize(d) {
   const base = defaults();
   const log = {};
@@ -207,7 +216,7 @@ function sanitize(d) {
           targetWeight: nonNeg(g.targetWeight),
         }
       : base.goals,
-    supplements: Array.isArray(d?.supplements) ? withDefaultActivities(d, clean(d.supplements, cleanSupplement)) : base.supplements,
+    supplements: Array.isArray(d?.supplements) ? onlyOneWorkout(withDefaultActivities(d, clean(d.supplements, cleanSupplement))) : base.supplements,
     supplementLog: log,
     products: clean(d?.products, cleanProduct),
     weights: cleanWeights(d?.weights),
@@ -419,6 +428,7 @@ export function applyImport(next, mode) {
   const have = new Set(db.weights.map((w) => w.date));
   db.weights = cleanWeights([...db.weights, ...next.weights.filter((w) => !have.has(w.date))]);
   db.supplements.push(...next.supplements.filter((s) => !sIds.has(s.id)));
+  db.supplements = onlyOneWorkout(db.supplements);
   for (const [day, ids] of Object.entries(next.supplementLog)) {
     db.supplementLog[day] = [...new Set([...(db.supplementLog[day] ?? []), ...ids])];
   }
@@ -467,7 +477,8 @@ export const workoutDue = (date) => db.workout.schedule.includes(new Date(date +
 // Set by workout.svelte.js while a plan is loaded. The plain "Strength workout" checkbox is then replaced by tracked workouts:
 // it is hidden and no longer part of the combo, so a workout can't be ticked off without logging it.
 export const planInfo = $state({ loaded: false });
-export const isShortcutHidden = (s) => planInfo.loaded && s.id === 'strength';
+export const isShortcutHidden = (s) => planInfo.loaded && s.group === 'workout';
+export const isActivity = (s) => s.group === 'activity' || s.group === 'workout';
 
 export function toggleSupplement(id, date) {
   const list = db.supplementLog[date] ?? [];
@@ -498,11 +509,11 @@ export function saveSupplement(item) {
 // ---- daily combo: supplements all taken + activities done + protein & fiber reached + calories within tolerance
 
 function dayStatus(date, t) {
-  const due = db.supplements.filter((s) => s.group !== 'activity' && isDue(s, date));
+  const due = db.supplements.filter((s) => !isActivity(s) && isDue(s, date));
   const taken = due.filter((s) => isTaken(s.id, date)).length;
   const { kcal, kcalTolerance, protein, fiber, comboActivities } = db.goals;
   const supplements = { done: taken, total: due.length, ok: taken === due.length };
-  const dueActivities = db.supplements.filter((s) => s.group === 'activity' && isDue(s, date) && !isShortcutHidden(s));
+  const dueActivities = db.supplements.filter((s) => isActivity(s) && isDue(s, date) && !isShortcutHidden(s));
   const doneActivities = dueActivities.filter((s) => isTaken(s.id, date)).length;
   // a rest day (nothing due) counts as done; when the option is off activities never block the combo
   const activities = { done: doneActivities, total: dueActivities.length, ok: !comboActivities || doneActivities === dueActivities.length };
